@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 # Class definitions for the kinematics of the serial-2R manipulator
 # and the modified five-bar manipulator (Stoch-2 leg)
 #
@@ -33,6 +34,7 @@ class Serial2RKin():
         Output:
         -- Solutions to both the branches of the IK. Angles specified in radians.
         -- Note that the angle of the knee joint is relative in nature.
+	-- Note the hip is taken with respective to the positive x- axis 
         '''
         valid = True
         q = np.zeros(2, float)
@@ -88,6 +90,140 @@ class Serial2RKin():
         mat[1,1] = l2*math.cos(q[0] + q[1])
         return mat
 
+class StochliteKinematics(object):
+    '''
+    Class to implement the position and velocity kinematics for the Stoch Lite leg
+    Position kinematics: Forward kinematics, Inverse kinematics
+    Velocity kinematics: Jacobian
+    '''
+    def __init__(self,
+            base_pivot=[0,0],
+            link_parameters=[0.15, 0.175]):
+        self.base_pivot = base_pivot
+        self.link_parameters = link_parameters
+        #angles = self.inverseKinematics(0,0,-0.325)
+        #print(angles[0])
+        #cordinates = self.forwardKinematics(angles)
+        #print(conrdintes)
+
+
+
+    def inverse2D(self, x):
+        '''
+        Inverse kinematics of the Stoch Lite leg
+        Args:
+        -- x : Position of the end-effector
+        Return:
+        -- valid : Specifies if the result is valid
+        -- q : The joint angles in the sequence [theta1, phi2, phi3, theta4], where the ith angle
+               is the angle of the ith link measured from the horizontal reference. q will be zero
+               when the inverse kinematics solution does not exist.
+        '''
+        valid = False
+        q = np.zeros(4)
+        [l1, l2] = self.link_parameters
+        leg = Serial2RKin(self.base_pivot, [l1,l2])
+        valid1, q1 = leg.inverseKinematics(x, branch=1)
+        if not valid1:
+            return valid, q
+        valid = True
+        # the knee is relative to  the hip
+        q = [q1[0], q1[1]]
+        return valid,q
+   
+    def inverseKinematics(self, x, y, z):
+        '''
+        inverse kinematics  function
+        Args:
+            x : end effector position on X-axis in leg frame, x-axis is forward 
+            y : end effector position on Y-axis in leg frame, y-axis is left 
+            z : end effector position on Z-axis in leg frame, z-axis is upwards
+            
+            These conventions are based on right hand rule
+        Ret:
+            [motor_knee, motor_hip, motor_abduction] :  a list of knee, hip, and abduction motor angles to reach a (x, y, z) position
+        '''
+        # print("in IK")
+        # print(x,y,z)
+        motor_abduction = np.arctan2(y,z)
+        # print(motor_abduction)
+        new_coords = np.array([x,z/np.cos(motor_abduction),y])
+        
+        _,q = self.inverse2D(x = [new_coords[0], new_coords[1]])
+        
+	    # returning the knee hip and the abduction
+        # out =self.forwardKinematics([q[1], q[0], motor_abduction])
+        # print("from fk")
+        # print(out)
+        return [q[1], q[0], motor_abduction]
+
+    def forwardKinematics(self, q):
+        '''
+        Forward kinematics of the Stoch Lite leg
+        Args:
+        -- q : Active joint angles, i.e., [theta1, theta2], angles of the links 1 and 2 (the driven links) the hip and the knee
+        Return:
+        -- x : End-effector positions
+
+        The conventions taken for this is the right hand rule which is x is forward y is left and z is up 
+        '''
+        [l1, l2] = self.link_parameters
+        x = l1 * math.cos(q[1]) + l2 * math.cos(q[1]+q[0])
+        z = l1 * math.sin(q[1]) + l2 * math.sin(q[1]+q[0])
+        y = z * math.sin(q[2])
+        z = z * math.cos(q[2]) 
+        return  [x,y,z]
+
+
+    def Jacobian(self, x):
+        '''
+        Provides the forward velocity Jacobian matrix given the end-effector position
+        Inverse-kinematics is perfomed to obtain the joint angles
+        Args:
+        --- x: The position vector of the end-effector
+        Returns:
+        --- mat: A 2x2 Jacobian matrix
+        '''
+        mat = np.zeros([2,2])
+        valid = False
+        [l1, l2, l2a, l2b, l3, l4, alpha1, alpha2] = self.link_parameters
+        valid_IK, q = self.inverseKinematics(x,y,z)
+        if not valid_IK:
+            return valid, mat
+        
+        [th1, phi2, phi3, th4] = q
+        J_xth = np.array([[-l1*math.sin(th1), 0],\
+                [l1*math.cos(th1), 0]])
+        J_xphi = np.array([[0, -l2a*math.sin(phi2 - alpha1) -l2b*math.sin(phi2 - alpha1 + math.pi - alpha2)],\
+                [0, l2a*math.cos(phi2 - alpha1) + l2b*math.cos(phi2 - alpha1 + math.pi - alpha2)]])
+        K_th = np.array([[-l1*math.sin(th1), l4*math.sin(th4)],\
+                [l1*math.cos(th1), -l4*math.cos(th4)]])
+        K_phi = np.array([[-l2a*math.sin(phi2 - alpha1), l3*math.sin(phi3) ],\
+                [l2a*math.cos(phi2 - alpha1), -l3*math.cos(phi3)]])
+
+        K_phi_inv = np.linalg.inv(K_phi)
+
+        mat = J_xth - J_xphi*(K_phi_inv*K_th)
+
+        return mat
+'''
+Can be uncommented to test the ik of the robot
+make sure you are providing points in the workspace 
+of the robot
+if __name__ == '__main__':
+        #s = Serial2RKin([0,0],[0.15,0.175])
+	    s = StochliteKinematics()
+        angles = s.inverseKinematics(0,0,-0.324999)
+        print(angles)
+        cordinates = s.forwardKinematics(angles)
+        print(cordinates)
+'''
+
+'''
+Conventions for all robots below this needs to be changed.
+
+Conventions used in StochLite -> Right Hand Rule, x: forwards, z: upwards
+
 class HyqKinematics(object):
     def __init__(self):
         pass
@@ -118,14 +254,14 @@ class HyqKinematics(object):
         return motor_knee, motor_hip, theta
     
     def forwardKinematics(self, q):
-        '''
+        
         Forward kinematics of the    HYQ leg
         Args:
 		-- q : Active joint angles, i.e., [theta1, theta4], angles of the links 1 and 4 (the driven links)
 		Return:
 		-- valid : Specifies if the result is valid
 		-- x : End-effector position
-		'''
+		
         l1 = 0.5 
         l2 = 0.5
         x = l1 * math.cos(q[0]) + l2 * math.cos(q[0]+q[1])
@@ -157,7 +293,7 @@ class LaikagoKinematics(object):
         #return [theta_1,theta_2]
 
     def inverseKinematics(self, x,y,z,br):
-        '''
+        
         inverse kinematics  function
         Args:
             x : end effector position on X-axis in leg frame
@@ -166,21 +302,21 @@ class LaikagoKinematics(object):
 
         Ret:
             [motor_knee, motor_hip, motor_abduction] :  a list of hip, knee, and abduction motor angles to reach a (x, y, z) position
-        '''
+        
         theta = np.arctan2(z,-y)
         new_coords = np.array([x,y/np.cos(theta),z])
         motor_hip, motor_knee = self.inverse2D(new_coords[0], new_coords[1], br)
         return motor_knee, motor_hip, theta
 
     def forwardKinematics(self, q):
-        '''
+        
 		Forward kinematics of the    HYQ leg
 		Args:
 		-- q : Active joint angles, i.e., [theta1, theta4], angles of the links 1 and 4 (the driven links)
 		Return:
 		-- valid : Specifies if the result is valid
 		-- x : End-effector position
-		'''
+		
         l1 = 0.25
         l2 = 0.25
         x = l1 * math.cos(q[0]) + l2 * math.cos(q[0]+q[1])
@@ -188,11 +324,11 @@ class LaikagoKinematics(object):
         return [x,y]
 
 class Stoch2Kinematics(object):
-    '''
+    
     Class to implement the position and velocity kinematics for the Stoch 2 leg
     Position kinematics: Forward kinematics, Inverse kinematics
     Velocity kinematics: Jacobian
-    '''
+    
     def __init__(self,
             base_pivot1=[0,0],
             base_pivot2=[0.035, 0],
@@ -203,7 +339,7 @@ class Stoch2Kinematics(object):
 
 
     def inverse2D(self, x):
-        '''
+        
         Inverse kinematics of the Stoch 2 leg
         Args:
         -- x : Position of the end-effector
@@ -212,7 +348,7 @@ class Stoch2Kinematics(object):
         -- q : The joint angles in the sequence [theta1, phi2, phi3, theta4], where the ith angle
                is the angle of the ith link measured from the horizontal reference. q will be zero
                when the inverse kinematics solution does not exist.
-        '''
+        
         valid = False
         q = np.zeros(4)
         [l1, l2, l2a, l2b, l3, l4, alpha1, alpha2] = self.link_parameters
@@ -232,7 +368,7 @@ class Stoch2Kinematics(object):
         q = [q1[0], q1[0]+q1[1], q2[0]+q2[1], q2[0]]
         return valid, q
     def inverseKinematics(self, x, y, z):
-        '''
+        
         inverse kinematics  function
         Args:
             x : end effector position on X-axis in leg frame
@@ -241,21 +377,21 @@ class Stoch2Kinematics(object):
 
         Ret:
             [motor_knee, motor_hip, motor_abduction] :  a list of hip, knee, and abduction motor angles to reach a (x, y, z) position
-        '''
+        
         motor_abduction = np.arctan2(z,-y)
         new_coords = np.array([x,-y/np.cos(motor_abduction) - 0.035,z])
         _,[motor_hip,_,_,motor_knee] = self.inverse2D(x = [new_coords[0], -new_coords[1]])
         return [motor_knee, motor_hip, motor_abduction]
 
     def forwardKinematics(self, q):
-        '''
+        
         Forward kinematics of the Stoch 2 leg
         Args:
         -- q : Active joint angles, i.e., [theta1, theta4], angles of the links 1 and 4 (the driven links)
         Return:
         -- valid : Specifies if the result is valid
         -- x : End-effector position
-        '''
+        
         valid = False
         x = np.zeros(2)
         [l1, l2, l2a, l2b, l3, l4, alpha1, alpha2] = self.link_parameters
@@ -265,22 +401,22 @@ class Stoch2Kinematics(object):
         valid, q = leg.inverseKinematics(p2, branch=1)
         if not valid:
             return valid, x
-        x = p1 \
-            + l2a*np.array([math.cos(q[0]), math.sin(q[0])]) \
+        x = p1 
+            + l2a*np.array([math.cos(q[0]), math.sin(q[0])]) 
             + l2b*np.array([math.cos(q[0] + math.pi - alpha2), math.sin(q[0] + math.pi - alpha2)])
         valid = True
         return valid, x
 
 
     def Jacobian(self, x):
-        '''
+        
         Provides the forward velocity Jacobian matrix given the end-effector position
         Inverse-kinematics is perfomed to obtain the joint angles
         Args:
         --- x: The position vector of the end-effector
         Returns:
         --- mat: A 2x2 Jacobian matrix
-        '''
+        
         mat = np.zeros([2,2])
         valid = False
         [l1, l2, l2a, l2b, l3, l4, alpha1, alpha2] = self.link_parameters
@@ -303,7 +439,5 @@ class Stoch2Kinematics(object):
         mat = J_xth - J_xphi*(K_phi_inv*K_th)
 
         return mat
-
-
-
+'''
 # End of file

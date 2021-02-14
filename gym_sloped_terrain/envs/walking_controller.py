@@ -13,9 +13,10 @@ from __future__ import division
 from __future__ import print_function
 from dataclasses import dataclass
 from collections import namedtuple
-from utils.ik_class import Stoch2Kinematics
-from utils.ik_class import LaikagoKinematics
-from utils.ik_class import HyqKinematics
+# from utils.ik_class import Stoch2Kinematics
+# from utils.ik_class import LaikagoKinematics
+# from utils.ik_class import HyqKinematics
+from utils.ik_class import StochliteKinematics
 import numpy as np
 
 PI = np.pi
@@ -50,7 +51,7 @@ class robot_data:
 class WalkingController():
     def __init__(self,
                  gait_type='trot',
-                 phase=[0, 0, 0, 0],
+                 phase=[0, PI, PI, 0],
                  ):
         self._phase = robot_data(front_right=phase[0], front_left=phase[1], back_right=phase[2], back_left=phase[3])
         self.front_left = leg_data('fl')
@@ -62,17 +63,20 @@ class WalkingController():
         self.MOTOROFFSETS_Stoch2 = [2.3562, 1.2217]
         self.MOTOROFFSETS_Laikago = [0.87, 0.7]  # [np.pi*0.9, 0]#
         self.MOTOROFFSETS_HYQ = [1.57, 0]
+        self.MOTOROFFSETS_Stochlite = [0, 0]
 
 
         self.leg_name_to_sol_branch_HyQ = {'fl': 0, 'fr': 0, 'bl': 1, 'br': 1}
         self.leg_name_to_dir_Laikago = {'fl': 1, 'fr': -1, 'bl': 1, 'br': -1}
         self.leg_name_to_sol_branch_Laikago = {'fl': 0, 'fr': 0, 'bl': 0, 'br': 0}
+        # self.leg_name_to_sol_branch_Stochlite = {'fl': 1, 'fr': -1, 'bl': 1, 'br': -1}
 
         self.body_width = 0.24
         self.body_length = 0.37
-        self.Stoch2_Kin = Stoch2Kinematics()
-        self.Laikago_Kin = LaikagoKinematics()
-        self.Hyq_Kin = HyqKinematics()
+        # self.Stoch2_Kin = Stoch2Kinematics()
+        # self.Laikago_Kin = LaikagoKinematics()
+        # self.Hyq_Kin = HyqKinematics()
+        self.Stochlite_Kin = StochliteKinematics()
 
     def update_leg_theta(self, theta):
         """ Depending on the gait, the theta for every leg is calculated"""
@@ -88,19 +92,20 @@ class WalkingController():
         self.back_right.theta = constrain_theta(theta + self._phase.back_right)
         self.back_left.theta = constrain_theta(theta + self._phase.back_left)
 
-    def initialize_elipse_shift(self, Yshift, Xshift, Zshift):
+    def initialize_elipse_shift(self, Xshift, Yshift, Zshift):
         '''
         Initialize desired X, Y, Z offsets of elliptical trajectory for each leg
         '''
-        self.front_right.y_shift = Yshift[0]
-        self.front_left.y_shift = Yshift[1]
-        self.back_right.y_shift = Yshift[2]
-        self.back_left.y_shift = Yshift[3]
 
         self.front_right.x_shift = Xshift[0]
         self.front_left.x_shift = Xshift[1]
         self.back_right.x_shift = Xshift[2]
         self.back_left.x_shift = Xshift[3]
+
+        self.front_right.y_shift = Yshift[0]
+        self.front_left.y_shift = Yshift[1]
+        self.back_right.y_shift = Yshift[2]
+        self.back_left.y_shift = Yshift[3]
 
         self.front_right.z_shift = Zshift[0]
         self.front_left.z_shift = Zshift[1]
@@ -122,17 +127,26 @@ class WalkingController():
 
         self.update_leg_theta(theta)
 
+        #for stochlite the order is fl,fr,bl,br after an action transform is done in the env files 
+
         leg_sl = action[:4]  # fr fl br bl
         leg_phi = action[4:8]  # fr fl br bl
 
         self._update_leg_phi_val(leg_phi)
         self._update_leg_step_length_val(leg_sl)
+        
+        # Action changed
+        # action[:4] -> step_length fr fl br bl
+        # action[4:8] -> steer angle 
+        # action[8:12] -> x_shift fr fl br bl
+        # action[12:16] -> y_shift fr fl br bl
+        # action[16:20] -> z_shift fr fl br bl
 
         self.initialize_elipse_shift(action[8:12], action[12:16], action[16:20])
 
         return legs
-
-    def run_elliptical_Traj_Stoch2(self, theta, action):
+    
+    def run_elliptical_Traj_Stochlite(self, theta, action):
         '''
         Semi-elliptical trajectory controller
         Args:
@@ -140,7 +154,97 @@ class WalkingController():
             action : trajectory modulation parameters predicted by the policy
         Ret:
             leg_motor_angles : list of motors positions for the desired action [FLH FLK FRH FRK BLH BLK BRH BRK FLA FRA BLA BRA]
+            Note: we are using the right hand rule for the conventions of the leg which is - x->front, y->left, z->up
         '''
+        legs = self.initialize_leg_state(theta, action)
+
+        z_center = 0.25 #-0.25 # changed, initial -0.28, changed wrt reset angles
+        foot_clearance = 0.06
+
+        for leg in legs:
+            leg_theta = (leg.theta / (2 * no_of_points)) * 2 * PI
+            leg.r = leg.step_length / 2
+
+            if self.gait_type == "trot":
+                x = - leg.r * np.cos(leg_theta) + leg.x_shift # positive values in action shift ellipse backwards
+                if leg_theta < PI:
+                    flag = 0
+                else:
+                    flag = 1
+                z = foot_clearance * np.sin(leg_theta) * flag + z_center + leg.z_shift
+
+            leg.x, leg.z, leg.y = np.array(
+                [[np.cos(leg.phi), 0, np.sin(leg.phi)], [0, 1, 0], [-np.sin(leg.phi), 0, np.cos(leg.phi)]]) @ np.array(
+                [x, z, 0])
+            
+            # leg.x = x * np.cos(leg.phi)
+            # leg.z = z
+            # leg.y = x * -np.sin(leg.phi)
+
+            # positive values in action: abduction in, all legs come in under the body
+            # vice versa
+
+            leg.y = leg.y + leg.y_shift
+
+            if leg.name == "fl" or leg.name == "bl":
+                leg.y = -leg.y 
+            
+            # print("In walking controller")
+            # print(leg.x, leg.y, leg.z)
+
+            leg.motor_knee, leg.motor_hip, leg.motor_abduction = self.Stochlite_Kin.inverseKinematics(leg.x, leg.y, leg.z)
+            # print(leg.motor_knee,leg.motor_hip,leg.motor_abduction)
+            leg.motor_hip = leg.motor_hip + self.MOTOROFFSETS_Stochlite[0]
+            leg.motor_knee = leg.motor_knee + self.MOTOROFFSETS_Stochlite[1]
+
+        # added pi/2 to all hip values: urdf takes -y as 0 reference, IK takes +x as 0 reference
+
+        leg_motor_angles = [-legs.front_left.motor_hip + PI/2, -legs.front_left.motor_knee, -legs.front_right.motor_hip + PI/2,
+                            -legs.front_right.motor_knee,
+                            -legs.back_left.motor_hip + PI/2, -legs.back_left.motor_knee, -legs.back_right.motor_hip + PI/2,
+                            -legs.back_right.motor_knee,
+                            legs.front_left.motor_abduction, legs.front_right.motor_abduction,
+                            legs.back_left.motor_abduction, legs.back_right.motor_abduction]
+        # print("Angles")
+        # print(leg_motor_angles)
+
+        return leg_motor_angles
+
+    def _update_leg_phi_val(self, leg_phi):
+        '''
+        Args:
+             leg_phi : steering angles for each leg trajectories
+        '''
+        self.front_right.phi = leg_phi[0]
+        self.front_left.phi = leg_phi[1]
+        self.back_right.phi = leg_phi[2]
+        self.back_left.phi = leg_phi[3]
+
+    def _update_leg_step_length_val(self, step_length):
+        '''
+        Args:
+            step_length : step length of each leg trajectories
+        '''
+        self.front_right.step_length = step_length[0]
+        self.front_left.step_length = step_length[1]
+        self.back_right.step_length = step_length[2]
+        self.back_left.step_length = step_length[3]
+
+
+    '''
+    Conventions for all robots below this needs to be changed.
+
+    Conventions used in StochLite -> Right Hand Rule, x: forwards, z: upwards
+
+    def run_elliptical_Traj_Stoch2(self, theta, action):
+        ''
+        Semi-elliptical trajectory controller
+        Args:
+            theta  : trajectory cycle parameter theta
+            action : trajectory modulation parameters predicted by the policy
+        Ret:
+            leg_motor_angles : list of motors positions for the desired action [FLH FLK FRH FRK BLH BLK BRH BRK FLA FRA BLA BRA]
+        ''
         legs = self.initialize_leg_state(theta, action)
 
         y_center = -0.244
@@ -177,14 +281,14 @@ class WalkingController():
         return leg_motor_angles
 
     def run_elliptical_Traj_HyQ(self, theta, action):
-        '''
+        ''
         Semi-elliptical trajectory controller
         Args:
             theta  : trajectory cycle parameter theta
             action : trajectory modulation parameters predicted by the policy
         Ret:
             leg_motor_angles : list of motors positions for the desired action [FLH FLK FRH FRK BLH BLK BRH BRK FLA FRA BLA BRA]
-        '''
+        ''
         legs = self.initialize_leg_state(theta, action)
 
         y_center = -0.7
@@ -226,14 +330,14 @@ class WalkingController():
         return leg_motor_angles
 
     def run_elliptical_Traj_Laikago(self, theta, action):
-        '''
+        ''
         Semi-elliptical trajectory controller
         Args:
             theta  : trajectory cycle parameter theta
             action : trajectory modulation parameters predicted by the policy
         Ret:
             leg_motor_angles : list of motors positions for the desired action [FLH FLK FRH FRK BLH BLK BRH BRK FLA FRA BLA BRA]
-        '''
+        ''
         legs = self.initialize_leg_state(theta, action)
 
         y_center = -0.35
@@ -277,26 +381,7 @@ class WalkingController():
 
         return leg_motor_angles
 
-    def _update_leg_phi_val(self, leg_phi):
-        '''
-        Args:
-             leg_phi : steering angles for each leg trajectories
-        '''
-        self.front_right.phi = leg_phi[0]
-        self.front_left.phi = leg_phi[1]
-        self.back_right.phi = leg_phi[2]
-        self.back_left.phi = leg_phi[3]
-
-    def _update_leg_step_length_val(self, step_length):
-        '''
-        Args:
-            step_length : step length of each leg trajectories
-        '''
-        self.front_right.step_length = step_length[0]
-        self.front_left.step_length = step_length[1]
-        self.back_right.step_length = step_length[2]
-        self.back_left.step_length = step_length[3]
-
+    '''
 
 def constrain_abduction(angle):
     '''
@@ -310,7 +395,8 @@ def constrain_abduction(angle):
 
 
 if (__name__ == "__main__"):
-    walkcon = WalkingController(phase=[PI, 0, 0, PI])
-    walkcon._update_leg_step_length(0.068 * 2, 0.4)
-    walkcon._update_leg_phi(0.4)
+    # walkcon = WalkingController(phase=[PI, 0, 0, PI])
+    walkcon = WalkingController(phase=[0, PI, PI, 0])
+    # walkcon._update_leg_step_length(0.068 * 2, 0.4)
+    # walkcon._update_leg_phi(0.4)
 
