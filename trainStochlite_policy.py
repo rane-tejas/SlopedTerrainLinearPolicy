@@ -358,7 +358,7 @@ if __name__ == "__main__":
     parser.add_argument('--logdir', help='Directory root to log policy files (npy)', type=str, default='logdir_name')
     parser.add_argument('--mp', help='Enable multiprocessing', type=int, default=1)
     # these you have to set
-    parser.add_argument('--lr', help='learning rate', type=float, default=0.2)
+    parser.add_argument('--lr', help='learning rate', type=float, default=0.02)
     parser.add_argument('--noise', help='noise hyperparameter', type=float, default=0.03)
     parser.add_argument('--episode_length', help='length of each episode', type=float, default=10)
     parser.add_argument('--normal', help='length of each episode', type=int, default=1)

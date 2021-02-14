@@ -64,9 +64,15 @@ tuned_actions_HyQ=   np.array([[0.0,0.0,0.0,0.0,
 
 tuned_actions_Stochlite = np.array([[0.3, 0.3, 0.3, 0.3, 
 										0.0, 0.0, 0.0, 0.0,
-	                        			-0.07, -0.07, -0.07, -0.07,
+	                        			0.0, 0.0, 0.0, 0.0,
 		                    			0.07, 0.07, 0.07, 0.07,
 		                    			0.0, 0.0, 0.0, 0.0],
+
+									[0.3, 0.3, 0.3, 0.3,
+					                    0.0, 0.0, 0.0, 0.0, 
+										-0.07, -0.07, -0.07, -0.07, 
+										0.07, 0.07, 0.07, 0.07, 
+										0.0, 0.0, 0.0, 0.0],
 										
 									[0.1, 0.1, 0.1, 0.1,
 					                    0.0, 0.0, 0.0, 0.0, 
@@ -131,7 +137,8 @@ if (__name__ == '__main__'):
 		print('Mean squared error:', mean_squared_error(actions, action_pred))
 		res = np.array(model.coef_)
 
-		res[3:] = res[3:] * 0 # changing policy matix to smaller values
+		# res = res * 0.1
+		# res[3:] = res[3:] * 0 # changing policy matix to smaller values
 
 		np.save("./initial_policies/"+args.policyName+".npy", res)
 

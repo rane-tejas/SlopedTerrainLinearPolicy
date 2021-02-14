@@ -59,7 +59,7 @@ class StochliteEnv(gym.Env):
 
 		self._theta = 0
 
-		self._frequency = 2 # originally 2.5, changing for stability
+		self._frequency = 2.5 # originally 2.5, changing for stability
 		self.termination_steps = end_steps
 		self.downhill = downhill
 
@@ -80,7 +80,7 @@ class StochliteEnv(gym.Env):
 		self.last_yaw = 0
 		self._distance_limit = float("inf")
 
-		self.current_com_height = 0.243
+		self.current_com_height = 0.25 # 0.243
 		
 		#wedge_parameters
 		self.wedge_start = 0.5 
@@ -521,9 +521,11 @@ class StochliteEnv(gym.Env):
 
 		action[8:12] = action[8:12] * -1
 
-		# action[16:20] = (action[16:20]+1)/2  #the Z_shift is always positive 
+		action[12:16] = action[12:16] * 0.14 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
 
 		action[16:20] = action[16:20] * 0.1 # Z_shift can be +/- 0.1 from z center
+
+		# print("in env", action)
 
 		return action
 
@@ -695,7 +697,7 @@ class StochliteEnv(gym.Env):
 			
 		'''
 		wedge_angle = self.incline_deg*PI/180
-		robot_height_from_support_plane = 0.243	
+		robot_height_from_support_plane = 0.25 # walking height of stochlite	
 		pos, ori = self.GetBasePosAndOrientation()
 
 		RPY_orig = self._pybullet_client.getEulerFromQuaternion(ori)
@@ -711,12 +713,17 @@ class StochliteEnv(gym.Env):
 
 		roll_reward = np.exp(-45 * ((RPY[0]-self.support_plane_estimated_roll) ** 2))
 		pitch_reward = np.exp(-45 * ((RPY[1]-self.support_plane_estimated_pitch) ** 2))
-		yaw_reward = np.exp(-35 * (RPY[2] ** 2))
+		yaw_reward = np.exp(-40 * (RPY[2] ** 2)) # np.exp(-35 * (RPY[2] ** 2)) increasing reward for yaw correction
 		height_reward = np.exp(-800 * (desired_height - current_height) ** 2)
 
 		x = pos[0]
+		y = pos[1]
 		x_l = self._last_base_position[0]
+		y_l = self._last_base_position[1]
 		self._last_base_position = pos
+
+		step_distance_x = (x - x_l)
+		step_distance_y = abs(y - y_l)
 
 		step_distance_x = (x - x_l)
 
@@ -725,7 +732,7 @@ class StochliteEnv(gym.Env):
 			reward = 0
 		else:
 			reward = round(yaw_reward, 4) + round(pitch_reward, 4) + round(roll_reward, 4)\
-					 + round(height_reward,4) + 100 * round(step_distance_x, 4)
+					 + round(height_reward,4) + 100 * round(step_distance_x, 4) - 50 * round(step_distance_y, 4)
 
 			'''
 			#Penalize for standing at same position for continuous 150 steps
