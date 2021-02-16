@@ -124,7 +124,7 @@ class StochliteEnv(gym.Env):
 		self.terrain_pitch = []
 		self.add_IMU_noise = IMU_Noise
 
-		self.INIT_POSITION =[0,0,0.3]
+		self.INIT_POSITION =[0,0,0.3] # [0,0,0.3], Spawning stochlite higher to remove initial drift
 		self.INIT_ORIENTATION = [0, 0, 0, 1]
 
 		self.support_plane_estimated_pitch = 0
@@ -515,13 +515,13 @@ class StochliteEnv(gym.Env):
 
 		action = np.clip(action,-1,1)
 
-		action[:4] = (action[:4]+1)/2	# Step lengths are positive always
+		action[:4] = (action[:4]+1)/2 	# Step lengths are positive always
 		
-		action[:4] = action[:4] * 2 * 0.1	# Max step length = 2x0.1 =0.2
+		action[:4] = action[:4] * 0.2 + 0.13 # adding offsets here for flat ground, since starting with 0 policy matrix	# Max step length = 2x0.1 =0.2
 
 		action[8:12] = action[8:12] * -1
 
-		action[12:16] = action[12:16] * 0.14 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
+		action[12:16] = action[12:16] * 0.14 + 0.03 # adding offsets here for flat ground, since starting with 0 policy matrix # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
 
 		action[16:20] = action[16:20] * 0.1 # Z_shift can be +/- 0.1 from z center
 
@@ -709,7 +709,7 @@ class StochliteEnv(gym.Env):
 	
 		desired_height = (robot_height_from_support_plane)/math.cos(wedge_angle) + math.tan(wedge_angle)*((pos[0])*math.cos(self.incline_ori)+ 0.5)
 
-
+		#Need to re-evaluate reward functions for slopes, value of reward function after considering error should be greater than 0.5, need to tune
 
 		roll_reward = np.exp(-45 * ((RPY[0]-self.support_plane_estimated_roll) ** 2))
 		pitch_reward = np.exp(-45 * ((RPY[1]-self.support_plane_estimated_pitch) ** 2))
@@ -724,8 +724,6 @@ class StochliteEnv(gym.Env):
 
 		step_distance_x = (x - x_l)
 		step_distance_y = abs(y - y_l)
-
-		step_distance_x = (x - x_l)
 
 		done = self._termination(pos, ori)
 		if done:

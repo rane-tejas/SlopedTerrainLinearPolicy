@@ -361,15 +361,15 @@ if __name__ == "__main__":
     parser.add_argument('--lr', help='learning rate', type=float, default=0.02)
     parser.add_argument('--noise', help='noise hyperparameter', type=float, default=0.03)
     parser.add_argument('--episode_length', help='length of each episode', type=float, default=10)
-    parser.add_argument('--normal', help='length of each episode', type=int, default=1)
+    parser.add_argument('--normal', help='length of each episode', type=int, default=0) # making a 0 policy matrix, for flat ground
     parser.add_argument('--gait', help='type of gait you want (Only in Stoch2 normal env', type=str, default='trot')
     parser.add_argument('--msg', help='msg to save in a text file', type=str, default='')
     parser.add_argument('--stairs', help='add stairs to the bezier environment', type=int, default=0)
     parser.add_argument('--action_dim', help='degree of the spline polynomial used in the training', type=int,default=20)
     parser.add_argument('--directions', help='divising factor of total directions to use', type=int, default=2)
-    parser.add_argument('--curi_learn', help='after how many iteration steps second stage of curriculum learning should start', type=int, default=10)
+    parser.add_argument('--curi_learn', help='after how many iteration steps second stage of curriculum learning should start', type=int, default=0) # removing curriculum learning
     parser.add_argument('--eval_step', help='policy evaluation after how many steps should take place', type=int, default=3)
-    parser.add_argument('--domain_Rand', help='add domain randomization', type=int, default=1)
+    parser.add_argument('--domain_Rand', help='add domain randomization', type=int, default=0) #switching off DR
     parser.add_argument('--anti_clock_ori', help='rotate the inclines anti-clockwise', type=bool, default=True)
     args = parser.parse_args()
     walk = [0, PI, PI / 2, 3 * PI / 2]
