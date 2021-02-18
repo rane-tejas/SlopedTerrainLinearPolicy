@@ -63,7 +63,7 @@ class WalkingController():
         self.MOTOROFFSETS_Stoch2 = [2.3562, 1.2217]
         self.MOTOROFFSETS_Laikago = [0.87, 0.7]  # [np.pi*0.9, 0]#
         self.MOTOROFFSETS_HYQ = [1.57, 0]
-        self.MOTOROFFSETS_Stochlite = [0, 0]
+        self.MOTOROFFSETS_Stochlite = [PI/2, 0] # [0, 0]
 
 
         self.leg_name_to_sol_branch_HyQ = {'fl': 0, 'fr': 0, 'bl': 1, 'br': 1}
@@ -76,7 +76,7 @@ class WalkingController():
         # self.Stoch2_Kin = Stoch2Kinematics()
         # self.Laikago_Kin = LaikagoKinematics()
         # self.Hyq_Kin = HyqKinematics()
-        self.Stochlite_Kin = StochliteKinematics()
+        self.stochlite_kin = StochliteKinematics()
 
     def update_leg_theta(self, theta):
         """ Depending on the gait, the theta for every leg is calculated"""
@@ -92,25 +92,25 @@ class WalkingController():
         self.back_right.theta = constrain_theta(theta + self._phase.back_right)
         self.back_left.theta = constrain_theta(theta + self._phase.back_left)
 
-    def initialize_elipse_shift(self, Xshift, Yshift, Zshift):
+    def initialize_elipse_shift(self, x_shift, y_shift, z_shift):
         '''
         Initialize desired X, Y, Z offsets of elliptical trajectory for each leg
         '''
 
-        self.front_right.x_shift = Xshift[0]
-        self.front_left.x_shift = Xshift[1]
-        self.back_right.x_shift = Xshift[2]
-        self.back_left.x_shift = Xshift[3]
+        self.front_right.x_shift = x_shift[0]
+        self.front_left.x_shift = x_shift[1]
+        self.back_right.x_shift = x_shift[2]
+        self.back_left.x_shift = x_shift[3]
 
-        self.front_right.y_shift = Yshift[0]
-        self.front_left.y_shift = Yshift[1]
-        self.back_right.y_shift = Yshift[2]
-        self.back_left.y_shift = Yshift[3]
+        self.front_right.y_shift = y_shift[0]
+        self.front_left.y_shift = y_shift[1]
+        self.back_right.y_shift = y_shift[2]
+        self.back_left.y_shift = y_shift[3]
 
-        self.front_right.z_shift = Zshift[0]
-        self.front_left.z_shift = Zshift[1]
-        self.back_right.z_shift = Zshift[2]
-        self.back_left.z_shift = Zshift[3]
+        self.front_right.z_shift = z_shift[0]
+        self.front_left.z_shift = z_shift[1]
+        self.back_right.z_shift = z_shift[2]
+        self.back_left.z_shift = z_shift[3]
 
     def initialize_leg_state(self, theta, action):
         '''
@@ -158,7 +158,7 @@ class WalkingController():
         '''
         legs = self.initialize_leg_state(theta, action)
 
-        z_center = 0.25 #-0.25 # changed, initial -0.28, changed wrt reset angles
+        z_center = -0.25 # changed, initial -0.28, changed wrt reset angles
         foot_clearance = 0.06
 
         for leg in legs:
@@ -166,45 +166,54 @@ class WalkingController():
             leg.r = leg.step_length / 2
 
             if self.gait_type == "trot":
-                x = - leg.r * np.cos(leg_theta) + leg.x_shift # positive values in action shift ellipse backwards
-                if leg_theta < PI:
-                    flag = 0
+                x = -leg.r * np.cos(leg_theta) - leg.x_shift # negate this equation if the bot walks backwards
+                if leg_theta > PI: # theta taken from +x, CW # Flip this sigh if the trajectory is mirrored
+                    flag = 0 #z-coordinate of ellipse, during stance_phase of walking
                 else:
-                    flag = 1
+                    flag = 1 #z-coordinate of ellipse, during swing_phase of walking
                 z = foot_clearance * np.sin(leg_theta) * flag + z_center + leg.z_shift
 
-            leg.x, leg.z, leg.y = np.array(
-                [[np.cos(leg.phi), 0, np.sin(leg.phi)], [0, 1, 0], [-np.sin(leg.phi), 0, np.cos(leg.phi)]]) @ np.array(
-                [x, z, 0])
-            
-            # leg.x = x * np.cos(leg.phi)
-            # leg.z = z
-            # leg.y = x * -np.sin(leg.phi)
+            leg.x, leg.y, leg.z = np.array(
+                [[np.cos(leg.phi), -np.sin(leg.phi), 0], [np.sin(leg.phi), np.cos(leg.phi), 0], [0, 0, 1]]) @ np.array(
+                [x, 0, z]) # rotating about z by steer_angle phi, CCW
 
             # positive values in action: abduction in, all legs come in under the body
             # vice versa
 
-            leg.y = leg.y + leg.y_shift
+            leg.y = leg.y + 0.096 + leg.y_shift # abd_link = 0.096, abd in x-z plane, not foot contact
 
-            if leg.name == "fl" or leg.name == "bl":
-                leg.y = -leg.y 
+            branch = "<" 
+
+            # if leg.name == "fr" or leg.name == "bl":
+            #     branch = 1
+            # else:
+            #     branch = 2
             
-            # print("In walking controller")
-            # print(leg.x, leg.y, leg.z)
+            print("In walking controller")
+            print(leg.x, leg.y, leg.z)
 
-            leg.motor_knee, leg.motor_hip, leg.motor_abduction = self.Stochlite_Kin.inverseKinematics(leg.x, leg.y, leg.z)
+            _,[leg.motor_abduction, leg.motor_hip, leg.motor_knee] = self.stochlite_kin.inverseKinematics([leg.x, leg.y, leg.z], branch)
             # print(leg.motor_knee,leg.motor_hip,leg.motor_abduction)
-            leg.motor_hip = leg.motor_hip + self.MOTOROFFSETS_Stochlite[0]
-            leg.motor_knee = leg.motor_knee + self.MOTOROFFSETS_Stochlite[1]
-
+            # leg.motor_hip = -leg.motor_knee
+            if leg.name == "fr" or leg.name == "br":
+                leg.motor_abduction = -leg.motor_abduction
+            
         # added pi/2 to all hip values: urdf takes -y as 0 reference, IK takes +x as 0 reference
 
-        leg_motor_angles = [-legs.front_left.motor_hip + PI/2, -legs.front_left.motor_knee, -legs.front_right.motor_hip + PI/2,
-                            -legs.front_right.motor_knee,
-                            -legs.back_left.motor_hip + PI/2, -legs.back_left.motor_knee, -legs.back_right.motor_hip + PI/2,
-                            -legs.back_right.motor_knee,
+        # leg_motor_angles = [-legs.front_left.motor_hip + PI/2, -legs.front_left.motor_knee, -legs.front_right.motor_hip + PI/2,
+        #                     -legs.front_right.motor_knee,
+        #                     -legs.back_left.motor_hip + PI/2, -legs.back_left.motor_knee, -legs.back_right.motor_hip + PI/2,
+        #                     -legs.back_right.motor_knee,
+        #                     legs.front_left.motor_abduction, legs.front_right.motor_abduction,
+        #                     legs.back_left.motor_abduction, legs.back_right.motor_abduction]
+
+        leg_motor_angles = [legs.front_left.motor_hip, legs.front_left.motor_knee, legs.front_right.motor_hip,
+                            legs.front_right.motor_knee,
+                            legs.back_left.motor_hip, legs.back_left.motor_knee, legs.back_right.motor_hip,
+                            legs.back_right.motor_knee,
                             legs.front_left.motor_abduction, legs.front_right.motor_abduction,
                             legs.back_left.motor_abduction, legs.back_right.motor_abduction]
+        
         # print("Angles")
         # print(leg_motor_angles)
 

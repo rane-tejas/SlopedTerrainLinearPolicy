@@ -8,7 +8,7 @@ from collections import deque
 import pybullet
 import gym_sloped_terrain.envs.bullet_client as bullet_client
 import pybullet_data
-# import gym_sloped_terrain.envs.planeEstimation.get_terrain_normal as normal_estimator
+import gym_sloped_terrain.envs.planeEstimation.get_terrain_normal as normal_estimator
 
 
 
@@ -64,8 +64,8 @@ class StochliteEnv(gym.Env):
 		self.downhill = downhill
 
 		#PD gains
-		self._kp = 200
-		self._kd = 10
+		self._kp = 1500
+		self._kd = 20
 
 		self.dt = 0.005
 		self._frame_skip = 25
@@ -226,7 +226,7 @@ class StochliteEnv(gym.Env):
 		if self._on_rack:
 			self._pybullet_client.createConstraint(
 				self.stochlite, -1, -1, -1, self._pybullet_client.JOINT_FIXED,
-				[0, 0, 0], [0, 0, 0], [0, 0, 0.3])
+				[0, 0, 0], [0, 0, 0], [0, 0, 0.4])
 
 		self._pybullet_client.resetBasePositionAndOrientation(self.stochlite, self.INIT_POSITION, self.INIT_ORIENTATION)
 		self._pybullet_client.resetBaseVelocity(self.stochlite, [0, 0, 0], [0, 0, 0])
@@ -377,7 +377,7 @@ class StochliteEnv(gym.Env):
 			self.x_f = 0
 			self.y_f = pertub_range[idxp]
 			self.incline_deg = deg + 2*idx1
-			self.incline_ori = ori + PI/6*idx2
+			# self.incline_ori = ori + PI/6*idx2
 			self.new_fric_val =frc[idx3]
 			self.friction = self.SetFootFriction(self.new_fric_val)
 			# self.FrontMass = self.SetLinkMass(0,extra_link_mass[idx0])
@@ -385,15 +385,15 @@ class StochliteEnv(gym.Env):
 			self.clips = cli[idxc]
 
 		else:
-			avail_deg = [0] # [5,7,9,11], changed for stochlite
+			avail_deg = [0, 0, 0] # [5,7,9,11], changed for stochlite
 			extra_link_mass=[0,.05,0.1,0.15]
 			pertub_range = [0, -60, 60, -100, 100]
 			cli=[5,6,7,8]
 			self.pertub_steps = 150 #random.randint(90,200) #Keeping fixed for now
 			self.x_f = 0
 			self.y_f = pertub_range[random.randint(0,4)]
-			# self.incline_deg = avail_deg[random.randint(0,3)]
-			self.incline_ori = 0 # (PI/12)*random.randint(0,6) #resolution of 15 degree, changed for stochlite
+			self.incline_deg = avail_deg[random.randint(0,2)]
+			# self.incline_ori = (PI/12)*random.randint(0,6) #resolution of 15 degree, changed for stochlite
 			self.new_fric_val = np.round(np.clip(np.random.normal(0.6,0.08),0.55,0.8),2)
 			self.friction = self.SetFootFriction(self.new_fric_val)
 			# i=random.randint(0,3)
@@ -408,11 +408,11 @@ class StochliteEnv(gym.Env):
 		'''
 		if default:
 			self.incline_deg = deg + 2 * idx1
-			self.incline_ori = ori + PI / 6 * idx2
+			# self.incline_ori = ori + PI / 6 * idx2
 
 		else:
-			avail_deg = [0, 0, 0, 0] # [5, 7, 9, 11]
-			self.incline_deg = avail_deg[random.randint(0, 3)]
+			avail_deg = [0, 0, 0] # [5, 7, 9, 11]
+			self.incline_deg = avail_deg[random.randint(0, 2)]
 			# self.incline_ori = (PI / 12) * random.randint(0, 6)  # resolution of 15 degree
 
 
@@ -517,11 +517,11 @@ class StochliteEnv(gym.Env):
 
 		action[:4] = (action[:4]+1)/2 	# Step lengths are positive always
 		
-		action[:4] = action[:4] * 0.2 + 0.13 # adding offsets here for flat ground, since starting with 0 policy matrix	# Max step length = 2x0.1 =0.2
+		action[:4] = action[:4] * 0.2 # Max step length = 2x0.1 =0.2
 
-		action[8:12] = action[8:12] * -1
+		action[8:12] = action[8:12]
 
-		action[12:16] = action[12:16] * 0.14 + 0.03 # adding offsets here for flat ground, since starting with 0 policy matrix # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
+		action[12:16] = action[12:16] * 0.14 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
 
 		action[16:20] = action[16:20] * 0.1 # Z_shift can be +/- 0.1 from z center
 
@@ -541,13 +541,16 @@ class StochliteEnv(gym.Env):
 
 		for leg in range(4):
 			contact_points_with_ground = self._pybullet_client.getContactPoints(self.plane, self.stochlite, -1, foot_ids[leg])
+			# print(contact_points_with_ground)
 			if len(contact_points_with_ground) > 0:
 				foot_contact_info[leg] = 1
+				# print("Contact", foot_contact_info[leg])
 
 			if self._is_wedge:
 				contact_points_with_wedge = self._pybullet_client.getContactPoints(self.wedge, self.stochlite, -1, foot_ids[leg])
 				if len(contact_points_with_wedge) > 0:
 					foot_contact_info[leg+4] = 1
+					# print("Contact", foot_contact_info[leg])
 
 			if self._is_stairs:
 				for steps in self.stairs:
@@ -555,6 +558,8 @@ class StochliteEnv(gym.Env):
 																					   foot_ids[leg])
 					if len(contact_points_with_stairs) > 0:
 						foot_contact_info[leg + 4] = 1
+
+		# print(foot_contact_info)
 
 		return foot_contact_info
 
@@ -629,10 +634,9 @@ class StochliteEnv(gym.Env):
 		Rot_Mat = np.array(Rot_Mat)
 		Rot_Mat = np.reshape(Rot_Mat,(3,3))
 
-
-		#need to change the vector_method for the stoch2 to stochlite
-		# plane_normal,self.support_plane_estimated_roll,self.support_plane_estimated_pitch = normal_estimator.vector_method_Stoch2(self.prev_incline_vec, contact_info, self.GetMotorAngles(), Rot_Mat)
-		# self.prev_incline_vec = plane_normal
+		plane_normal, self.support_plane_estimated_roll, self.support_plane_estimated_pitch = normal_estimator.vector_method_Stochlite(self.prev_incline_vec, contact_info, self.GetMotorAngles(), Rot_Mat)
+		self.prev_incline_vec = plane_normal
+		print("estimate", self.support_plane_estimated_roll, self.support_plane_estimated_pitch)
 
 		self._n_steps += 1
 
@@ -792,6 +796,7 @@ class StochliteEnv(gym.Env):
 		This function returns the current joint angles in order [FLH FLK FRH FRK BLH BLK BRH BRK FLA FRA BLA BRA ]
 		'''
 		motor_ang = [self._pybullet_client.getJointState(self.stochlite, motor_id)[0] for motor_id in self._motor_id_list]
+		# print("motor angles", motor_ang)
 		return motor_ang
 
 	def GetMotorVelocities(self):
