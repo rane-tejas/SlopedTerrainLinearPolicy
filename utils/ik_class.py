@@ -133,7 +133,7 @@ class Serial3RKinematics():
         self.base_pivot = base_pivot
         self.serial_2R = Serial2RKinematics([base_pivot[1], base_pivot[2]], [link_lengths[1], link_lengths[2]])
 
-    def inverseKinematics(self, ee_pos, branch="<"):
+    def inverseKinematics(self, leg_ID, ee_pos, branch="<"):
         '''
         Inverse kinematics of a serial 3-R manipulator
 
@@ -143,11 +143,13 @@ class Serial3RKinematics():
         -- base_pivot: Position of the base pivot (in Cartesian co-ordinates)
         -- link_len: Link lenghts [l1, l2, l3]
         -- ee_pos: position of the end-effector [x, y, z] (Cartesian co-ordinates)
+        -- branch: specifies the branch of the inverse kinematics solutions
 
         Output:
         -- Solutions to both the branches of the IK. Angles specified in radians.
         -- Note that the angle of the knee joint is relative in nature.
-	    -- Note the hip is taken with respective to the positive x- axis 
+	    -- Note the hip is taken with respective to the negative z axis
+        -- The solution can be in 2 forms, based on the branch selected 
         '''
 
         valid = True
@@ -158,11 +160,19 @@ class Serial3RKinematics():
 
         abd_link = self.link_lengths[0]
         l = math.sqrt(y**2 + z**2)
+        # if l < abd_link:
+        #     valid = False
+        #     return valid, q
         z_prime = -math.sqrt(l**2 - abd_link**2)
-        t1 = math.atan2(-z_prime, abd_link)
-        t2 = math.atan2(y, -z)
 
-        q[0] = t1 + t2 - PI/2
+        if leg_ID == "FR" or leg_ID == "BR":
+            t1 = math.atan2(-z_prime, abd_link)
+            t2 = math.atan2(-y, -z)
+            q[0] = PI/2 - t1 - t2
+        else:
+            t1 = math.atan2(-z_prime, abd_link)
+            t2 = math.atan2(y, -z)
+            q[0] = t1 + t2 - PI/2
 
         x_prime = x
 
@@ -175,7 +185,7 @@ class Serial3RKinematics():
 
         return valid, q
 
-    def forwardKinematics(self, q):
+    def forwardKinematics(self, leg_ID, q):
         '''
         Forward Kinematics of the serial 3-R manipulator
 
@@ -190,9 +200,12 @@ class Serial3RKinematics():
         abd_link = self.link_lengths[0]
         v = np.zeros(3)
 
-        q_abd = q[0]
+        if leg_ID == "FR" or leg_ID == "BR":
+            q_abd = -q[0]
+        else:
+            q_abd = q[0]
         q_hip = q[1]
-        q_knee = -q[2]
+        q_knee = q[2]
 
         v_temp = self.serial_2R.forwardKinematics([q_hip, q_knee])
         
@@ -217,7 +230,7 @@ class StochliteKinematics(object):
         self.link_parameters = link_parameters
         self.serial_3R = Serial3RKinematics(base_pivot, link_parameters)
 
-    def inverseKinematics(self, v, branch="<"):
+    def inverseKinematics(self, leg_ID, v, branch="<"):
         '''
         inverse kinematics  function
         Note - Leg is in x-z plane, rotation about positive y, positive x is 0 reference
@@ -234,24 +247,16 @@ class StochliteKinematics(object):
         hip_angle = 0
         knee_angle = 0        
 
-        valid, q = self.serial_3R.inverseKinematics(v, branch)
+        valid, q = self.serial_3R.inverseKinematics(leg_ID, v, branch)
 
         if valid:
-            # for i in [1,2]:
-            #     if q[i] > PI:
-            #         q[i] = 2*PI - q[i]
-            #         # print(q[i])
-            #     elif q[i] < -PI:
-            #         q[i] = 2*PI + q[i]
-            #         # print(q[i])
-            
             abd_angle = q[0]
             hip_angle = q[1]
             knee_angle = q[2]
         
         return valid,[abd_angle, hip_angle, knee_angle]
 
-    def forwardKinematics(self, q):
+    def forwardKinematics(self, leg_ID, q):
         '''
         Forward kinematics of the Stoch Lite leg
         Args:
@@ -261,8 +266,8 @@ class StochliteKinematics(object):
 
         The conventions taken for this is the right hand rule which is x is forward y is left and z is up 
         '''
-        
-        v = self.serial_3R.forwardKinematics(q)
+
+        v = self.serial_3R.forwardKinematics(leg_ID, q)
 
         return v
 
@@ -273,14 +278,14 @@ class StochliteKinematics(object):
 if __name__ == '__main__':
     #s = Serial2RKin([0,0],[0.15,0.175])
     s = StochliteKinematics()
-    valid, angles = s.inverseKinematics([-0.1,0.096,-0.25])
+    valid, angles = s.inverseKinematics("FR", [0.1, -0.096,-0.25])
     if valid:
         print(angles)
     else:
         print("invalid")
 
     # angles = np.array([PI/2,0,0])
-    cordinates = s.forwardKinematics(angles)
+    cordinates = s.forwardKinematics("FL", angles)
     print(cordinates)
 
 #End of file

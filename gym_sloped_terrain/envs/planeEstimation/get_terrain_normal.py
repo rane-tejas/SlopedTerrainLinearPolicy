@@ -1,13 +1,14 @@
 import math
 import numpy as np
-from utils.ik_class import Stoch2Kinematics
-from utils.ik_class import HyqKinematics
-from utils.ik_class import LaikagoKinematics
+# from utils.ik_class import Stoch2Kinematics
+# from utils.ik_class import HyqKinematics
+# from utils.ik_class import LaikagoKinematics
+from utils.ik_class import StochliteKinematics
 from dataclasses import dataclass
 from collections import namedtuple
 from collections import deque
 
-
+PI = np.pi
 
 @dataclass
 class leg_joint_info():
@@ -21,140 +22,7 @@ contacts = np.zeros(4)
 foot_pos_queue1 = deque([0] * 2, maxlen=2)
 foot_pos_queue2 = deque([0] * 2, maxlen=2)  # observation queue
 
-def legFrame_to_BodyFrame_Hyq(leg_id, hip_angle, knee_angle, abd_angle):
-    '''
-    Function to determine the positon of the foot in the body frame.
-    Args:
-        hip_angle : Angle of the hip joint in radians
-        knee_angle: Angle of the knee joint in radians
-        abd_angle : Angle of the abduction joint in radians
-        leg_id    : One of the following strings: "FL", "FR", "BL", "BR"
-    Ret:
-        valid    : A flag to indicate if the results are valid or not
-        [x, y, z]: Position co-ordinates of the foot in the body frame.
-
-    Note: In this case the x-axis points forward, y-axis points upwards and
-    the positive z-axis points towards the right.
-    abd_angle is measured w.r.t the negative y-axis with CCW positive
-    '''
-    # Robot paramters
-    body_length = 0.717
-    body_width = 0.414
-
-    # Co-ordinates in leg-frame
-    x_leg, y_leg, z_leg = 0.0, 0.0, 0.0
-
-    leg = HyqKinematics()
-    x_l, y_l = leg.forwardKinematics([hip_angle, knee_angle])
-    valid = True
-    # Return if the data is invalid
-    if (valid == False):
-        return False, [0, 0, 0]
-
-    y_l = y_l + 0.035
-    x_leg = x_l
-    y_leg = y_l * np.cos(abd_angle)
-    z_leg = -y_l * np.sin(abd_angle)
-
-    # For the left legs, positive abduction angle
-    # corresponds to moving outwards in the negative z direction.
-    if (leg_id == "FL") | (leg_id == "BL"):
-        z_leg = -1 * z_leg
-
-    # Position of foot in leg frame
-    foot_l = np.array([x_leg, y_leg, z_leg])
-
-    if (leg_id == "FL"):
-        leg_frame = [+body_length / 2, 0, -body_width / 2]
-
-    elif (leg_id == "FR"):
-        leg_frame = [+body_length / 2, 0, +body_width / 2]
-
-    elif (leg_id == "BL"):
-        leg_frame = [-body_length / 2, 0, -body_width / 2]
-
-    elif (leg_id == "BR"):
-        leg_frame = [-body_length / 2, 0, +body_width / 2]
-
-    else:
-        valid = False
-        leg_frame = [0, 0, 0]
-
-    # Position of foot in body_frame
-    foot_b = foot_l + np.array(leg_frame)
-
-    foot_b_transform = np.array([foot_b[0], -foot_b[2], foot_b[1]])
-
-    return valid, foot_b_transform
-
-
-def legFrame_to_BodyFrame_Laikago(leg_id, hip_angle, knee_angle, abd_angle):
-    '''
-    Function to determine the positon of the foot in the body frame.
-    Args:
-        hip_angle : Angle of the hip joint in radians
-        knee_angle: Angle of the knee joint in radians
-        abd_angle : Angle of the abduction joint in radians
-        leg_id    : One of the following strings: "FL", "FR", "BL", "BR"
-    Ret:
-        valid    : A flag to indicate if the results are valid or not
-        [x, y, z]: Position co-ordinates of the foot in the body frame.
-
-    Note: In this case the x-axis points forward, y-axis points upwards and
-    the positive z-axis points towards the right.
-    abd_angle is measured w.r.t the negative y-axis with CCW positive
-    '''
-    # Robot paramters
-    body_length = 0.8#0.717
-    body_width = 0.26 #0.414
-
-    # Co-ordinates in leg-frame
-    x_leg, y_leg, z_leg = 0.0, 0.0, 0.0
-
-    leg = LaikagoKinematics()
-    x_l, y_l = leg.forwardKinematics([hip_angle, knee_angle])
-    valid = True
-    # Return if the data is invalid
-    if (valid == False):
-        return False, [0, 0, 0]
-
-    x_leg = x_l
-    y_leg = y_l * np.cos(abd_angle)
-    z_leg = -y_l * np.sin(abd_angle)
-
-    # For the left legs, positive abduction angle
-    # corresponds to moving outwards in the negative z direction.
-    if (leg_id == "FL") | (leg_id == "BL"):
-        z_leg = -1 * z_leg
-
-    # Position of foot in leg frame
-    foot_l = np.array([x_leg, y_leg, z_leg])
-
-    if (leg_id == "FL"):
-        leg_frame = [+body_length / 2, 0, -body_width / 2]
-
-    elif (leg_id == "FR"):
-        leg_frame = [+body_length / 2, 0, +body_width / 2]
-
-    elif (leg_id == "BL"):
-        leg_frame = [-body_length / 2, 0, -body_width / 2]
-
-    elif (leg_id == "BR"):
-        leg_frame = [-body_length / 2, 0, +body_width / 2]
-
-    else:
-        valid = False
-        leg_frame = [0, 0, 0]
-
-    # Position of foot in body_frame
-    foot_b = foot_l + np.array(leg_frame)
-
-    foot_b_transform = np.array([foot_b[0], -foot_b[2], foot_b[1]])
-
-    return valid, foot_b_transform
-
-
-def legFrame_to_BodyFrame_Stoch2(leg_id, hip_angle, knee_angle, abd_angle):
+def legFrame_to_BodyFrame_Stochlite(leg_id, abd_angle, hip_angle, knee_angle):
     '''
     Function to determine the positon of the foot in the body frame.
     Args:
@@ -166,61 +34,63 @@ def legFrame_to_BodyFrame_Stoch2(leg_id, hip_angle, knee_angle, abd_angle):
         valid    : A flag to indicate if the results are valid or not
         [x, y, z]: Position co-ordinates of the foot in the body frame.
 
-    Note: In this case the x-axis points forward, y-axis points upwards and 
-    the positive z-axis points towards the right.
-    abd_angle is measured w.r.t the negative y-axis with CCW positive
+    Note: In this case the x-axis points forward, y-axis points towards the left and 
+    the positive z-axis points upwards.
+    abd_angle is measured w.r.t the negative z-axis with CCW positive
     '''
     # Robot paramters
-    body_length = 0.37
-    body_width = 0.24
+    body_length = 0.334 # 0.37
+    body_width = 0.192 + 2*0.096 # 0.24
 
     # Co-ordinates in leg-frame
     x_leg, y_leg, z_leg = 0.0, 0.0, 0.0
 
-    leg = Stoch2Kinematics()
-    valid, [x_l, y_l] = leg.forwardKinematics([hip_angle, knee_angle])
+    leg = StochliteKinematics()
+    [x_leg, y_leg, z_leg] = leg.forwardKinematics(leg_id, [abd_angle, hip_angle, knee_angle])
+    print("leg ID, Plane Estimator")
+    print(leg_id, x_leg, y_leg, z_leg)
 
     # Return if the data is invalid
-    if (valid == False):
-        return False, [0,0,0]
+    # if (valid == False):
+    #     return False, [0,0,0]
 
-    y_l = y_l + 0.035
-    x_leg =  x_l
-    y_leg =  y_l * np.cos(abd_angle)
-    z_leg = -y_l * np.sin(abd_angle)
+    # y_l = y_l + 0.035
+    # x_leg =  x_l
+    # y_leg =  y_l * np.cos(abd_angle)
+    # z_leg = -y_l * np.sin(abd_angle)
 
 
-    # For the left legs, positive abduction angle 
-    # corresponds to moving outwards in the negative z direction.
-    if (leg_id == "FL") | (leg_id == "BL"):
-        z_leg = -1*z_leg
+    # For the left legs, changing direction of abduction
+    # if (leg_id == "FR") | (leg_id == "BR"):
+    #     y_leg = -y_leg
 
     # Position of foot in leg frame
     foot_l = np.array([x_leg, y_leg, z_leg])
 
     if (leg_id == "FL"):
-        leg_frame = [+body_length/2, 0, -body_width/2]
+        leg_frame = [+body_length/2, +body_width/2, 0]
 
     elif (leg_id == "FR"):
-        leg_frame = [+body_length/2, 0, +body_width/2]
+        leg_frame = [+body_length/2, -body_width/2, 0]
 
     elif (leg_id == "BL"):
-        leg_frame = [-body_length/2, 0, -body_width/2]
+        leg_frame = [-body_length/2, +body_width/2, 0]
    
     elif (leg_id == "BR"):
-        leg_frame = [-body_length/2, 0, +body_width/2]
+        leg_frame = [-body_length/2, -body_width/2, 0]
 
-    else:
-        valid = False
-        leg_frame = [0,0,0]
+    # else:
+    #     valid = False
+    #     leg_frame = [0,0,0]
     
     # Position of foot in body_frame
     foot_b = foot_l + np.array(leg_frame)
+    print("foot_b", foot_b)
 
-    foot_b_transform = np.array([foot_b[0],-foot_b[2], foot_b[1]])
+    foot_b_transform = np.array([foot_b[0],foot_b[1], foot_b[2]])
+    # print("foot transform", foot_b_transform)
 
-    return valid, foot_b_transform
-
+    return foot_b_transform
 
 def planeNormal(pt_a, pt_b, pt_c):
     '''
@@ -273,7 +143,7 @@ def transformation(rot, x):
     x_out = np.dot(mat, x_in)
     return x_out
 
-def four_point_contact_check_Stoch2(legs, contact_info, rot_mat):
+def four_point_contact_check_Stochlite(legs, contact_info, rot_mat):
     '''
     calculates the individual vectors connecting the feet that are in contact
     by calling the forward kinematics functions. 
@@ -288,6 +158,179 @@ def four_point_contact_check_Stoch2(legs, contact_info, rot_mat):
         euler_angles_of_support_plane[0] : the estimated roll of the support plane 
         euler_angles_of_support_plane[1] : the estimated pitch of the support plane
     '''
+    four_contact_status = False
+    leg_contact_info = np.zeros(4)
+    global contacts
+    for i in range(4):
+        if contact_info[i] == 1 or contact_info[i + 4] == 1:
+            leg_contact_info[i] = 1
+
+    if leg_contact_info[0] == 1 and leg_contact_info[3] == 1:
+        contacts[0] = 1
+        contacts[3] = 1
+        for i in [0,3]: # FR ,BL
+            # print("Q1")
+            foot_pos = legFrame_to_BodyFrame_Stochlite(legs[i].name, legs[i].abd_angle, legs[i].hip_angle,
+                                                    legs[i].knee_angle)
+            # print("foot pos", foot_pos)
+            foot_pos = transformation(rot_mat, foot_pos)
+            # print("after tf", foot_pos)
+            foot_pos_queue1.append(foot_pos)
+
+    elif leg_contact_info[1] == 1 and leg_contact_info[2] == 1:
+        contacts[1] = 1
+        contacts[2] = 1
+        for i in [1,2]: # FL, BR
+            # print("Q2")
+            foot_pos = legFrame_to_BodyFrame_Stochlite(legs[i].name, legs[i].abd_angle, legs[i].hip_angle,
+                                                    legs[i].knee_angle)
+            # print("foot pos", foot_pos)
+            foot_pos = transformation(rot_mat, foot_pos)
+            # print("after tf", foot_pos)
+            foot_pos_queue2.append(foot_pos)
+
+    if np.sum(contacts) == 4:
+        four_contact_status = True
+        print("que: FR, BL",foot_pos_queue1)
+        print("que: FL, BR",foot_pos_queue2)
+        print("sent")
+        print(rot_mat)
+        for i in range(4):
+            contacts[i] = 0
+
+
+    return four_contact_status, foot_pos_queue2, foot_pos_queue1
+
+def vector_method_Stochlite(prev_normal_vec, contact_info, motor_angles, rot_mat):
+    '''
+    calculates the normal of the support plane, as the vector product of the 
+    vectors joining foots that are in contact in sucessive gait steps. 
+    Args:
+        prev_normal_v : The normal vector that was calculated in the previous iteration.
+        contact_info  :  A list containing the contact information of each individual foot 
+                        with the ground and a special structure (Wedge or Staircase or Track).
+                        The convention being, 1 - in contact and 0 - not in contact.
+        motor_angles  : The motor angles in the order [FLH, FLK, FRH, FRK, BLH, BLK, 
+                        BRH, BRK, FLA, FRA, BLA, BRA]
+        rot_mat       : The rotation matrix of the base of the robot.
+    Returns:
+        plane_normal                     : a np array of the caclucated plane normal
+        euler_angles_of_support_plane[0] : the estimated roll of the support plane 
+        euler_angles_of_support_plane[1] : the estimated pitch of the support plane
+    '''
+
+    FL = leg_joint_info("FL", motor_angles[0], motor_angles[1], motor_angles[2])
+    FR = leg_joint_info("FR", motor_angles[3], motor_angles[4], motor_angles[5])
+    BL = leg_joint_info("BL", motor_angles[6], motor_angles[7], motor_angles[8])
+    BR = leg_joint_info("BR", motor_angles[9], motor_angles[10], motor_angles[11])
+
+    Legs = namedtuple('legs', 'front_right front_left back_right back_left')
+    legs = Legs(front_right=FR, front_left=FL, back_right=BR,
+                back_left=BL)
+    four_contact_status, foot_contacts_vec1, foot_contacts_vec2 = four_point_contact_check_Stochlite(legs, contact_info, rot_mat)
+
+    print("Rot_mat", rot_mat)
+    euler_angles_rot_mat = rotationMatrixToEulerAngles(rot_mat)
+    print("EA", euler_angles_rot_mat)
+
+    if four_contact_status:
+        print("change")
+        normal_vec = planeNormalFourPoint(foot_contacts_vec1[0], foot_contacts_vec1[1], foot_contacts_vec2[0], foot_contacts_vec2[1])
+        plane_normal = normal_vec
+
+    else:
+        plane_normal = prev_normal_vec
+
+    # plane_normal = [0, 0, 1]    
+    print("plane normal", plane_normal)
+    y_cap_of_support_plane = np.cross(plane_normal,transformation(rot_mat,np.array([1,0,0])))
+    x_cap_of_support_plane = np.cross(y_cap_of_support_plane,plane_normal)
+
+    #rot matrix of support plane in world frame
+    rot_mat_support_plane = np.transpose(np.array([x_cap_of_support_plane,y_cap_of_support_plane,plane_normal]))
+    # print("Support Pl", rot_mat_support_plane)
+    # calculation of  euler angles of the obtained rotation matrix in world frame
+    euler_angles_of_support_plane = rotationMatrixToEulerAngles(rot_mat_support_plane)
+    return np.array(plane_normal),euler_angles_of_support_plane[0],euler_angles_of_support_plane[1]
+
+def isRotationMatrix(R) :
+    '''
+    checks whether the given matrix satisfies the conditions of a rotation matrix
+    Args:
+        R : Rotation matrix to be converted
+    Returns:
+        A boolean value, verifying whether the given matrix is a rotation matix
+    '''
+    Rt = np.transpose(R)
+    shouldBeIdentity = np.dot(Rt, R)
+    I = np.identity(3, dtype = R.dtype)
+    n = np.linalg.norm(I - shouldBeIdentity)
+    return n < 1e-6
+
+
+def rotationMatrixToEulerAngles(R) :
+    '''
+    Coverts rotation matrix to euler angles
+    Args:
+        R : Rotation matrix to be converted
+    Returns:
+        [x,y,z] : The list of euler angles in the order roll(x), pitch(y) and yaw(z)
+    
+    '''    
+    sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
+    
+    singular = sy < 1e-6
+
+    if  not singular :
+        x = math.atan2(R[2,1] , R[2,2])
+        y = math.atan2(-R[2,0], sy)
+        z = math.atan2(R[1,0], R[0,0])
+    else :
+        x = math.atan2(-R[1,2], R[1,1])
+        y = math.atan2(-R[2,0], sy)
+        z = 0
+
+    return np.array([x, y, z])
+
+if __name__ == "__main__":
+    leg        = StochliteKinematics()
+    foot_pos   = [0.0, 0.06, -0.25]
+    valid, q   = leg.inverseKinematics(np.array(foot_pos))
+
+    # Find position of foot in body frame using joint angle data
+    abd_angle = q[0]
+    hip_angle  = q[1]
+    knee_angle = q[2]
+    
+    x = legFrame_to_BodyFrame_Stochlite(abd_angle, hip_angle, knee_angle, "FL")
+    print(x)
+    # new_pos = transformation(rot, x)
+
+    # Normal vector to plane containing three points
+    x = planeNormal([1,0,0],[0,1,0],[0,0,1])
+    print(x, np.linalg.norm(x))
+
+'''
+
+Conventions for all robots below this needs to be changed.
+
+Conventions used in StochLite -> Right Hand Rule, x: forwards, z: upwards
+
+def four_point_contact_check_Stoch2(legs, contact_info, rot_mat):
+    ''
+    calculates the individual vectors connecting the feet that are in contact
+    by calling the forward kinematics functions. 
+    Args:
+        legs          : An object holding the leg information and leg label of all four legs.
+        contact_info  : A list containing the contact information of each individual foot 
+                        with the ground and a special structure (Wedge or Staircase or Track).
+                        The convention being, 1 - in contact and 0 - not in contact.
+        rot_mat       : The rotation matrix of the base of the robot.
+    Returns:
+        plane_normal                     : a np array of the caclucated plane normal
+        euler_angles_of_support_plane[0] : the estimated roll of the support plane 
+        euler_angles_of_support_plane[1] : the estimated pitch of the support plane
+    ''
     bool = False
     MOTOROFFSETS = [2.3562, 1.2217]
     leg_contact_info = np.zeros(4)
@@ -395,8 +438,8 @@ def four_point_contact_check_Hyq(legs, contact_info, rot_mat):
 
     return bool, foot_pos_queue2, foot_pos_queue1
 
-def vector_method_Stoch2(prev_normal_vec, contact_info, motor_angles, rot_mat):
-    '''
+    def vector_method_Stoch2(prev_normal_vec, contact_info, motor_angles, rot_mat):
+    ''
     calculates the normal of the support plane, as the vector product of the 
     vectors joining foots that are in contact in sucessive gait steps. 
     Args:
@@ -411,7 +454,7 @@ def vector_method_Stoch2(prev_normal_vec, contact_info, motor_angles, rot_mat):
         plane_normal                     : a np array of the caclucated plane normal
         euler_angles_of_support_plane[0] : the estimated roll of the support plane 
         euler_angles_of_support_plane[1] : the estimated pitch of the support plane
-    '''
+    ''
 
     FR = leg_joint_info("FR", motor_angles[2], motor_angles[3], motor_angles[9])
     FL = leg_joint_info("FL", motor_angles[0], motor_angles[1], motor_angles[8])
@@ -502,59 +545,203 @@ def vector_method_Hyq(prev_normal_vec, contact_info, motor_angles, rot_mat):
     euler_angles_of_support_plane = rotationMatrixToEulerAngles(rot_mat_support_plane)
     return np.array(plane_normal), euler_angles_of_support_plane[0], euler_angles_of_support_plane[1]
 
-
-def isRotationMatrix(R) :
-    '''
-    checks whether the given matrix satisfies the conditions of a rotation matrix
+    def legFrame_to_BodyFrame_Hyq(leg_id, hip_angle, knee_angle, abd_angle):
+    ''
+    Function to determine the positon of the foot in the body frame.
     Args:
-        R : Rotation matrix to be converted
-    Returns:
-        A boolean value, verifying whether the given matrix is a rotation matix
-    '''
-    Rt = np.transpose(R)
-    shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3, dtype = R.dtype)
-    n = np.linalg.norm(I - shouldBeIdentity)
-    return n < 1e-6
+        hip_angle : Angle of the hip joint in radians
+        knee_angle: Angle of the knee joint in radians
+        abd_angle : Angle of the abduction joint in radians
+        leg_id    : One of the following strings: "FL", "FR", "BL", "BR"
+    Ret:
+        valid    : A flag to indicate if the results are valid or not
+        [x, y, z]: Position co-ordinates of the foot in the body frame.
+
+    Note: In this case the x-axis points forward, y-axis points upwards and
+    the positive z-axis points towards the right.
+    abd_angle is measured w.r.t the negative y-axis with CCW positive
+    ''
+    # Robot paramters
+    body_length = 0.717
+    body_width = 0.414
+
+    # Co-ordinates in leg-frame
+    x_leg, y_leg, z_leg = 0.0, 0.0, 0.0
+
+    # leg = HyqKinematics()
+    x_l, y_l = leg.forwardKinematics([hip_angle, knee_angle])
+    valid = True
+    # Return if the data is invalid
+    if (valid == False):
+        return False, [0, 0, 0]
+
+    y_l = y_l + 0.035
+    x_leg = x_l
+    y_leg = y_l * np.cos(abd_angle)
+    z_leg = -y_l * np.sin(abd_angle)
+
+    # For the left legs, positive abduction angle
+    # corresponds to moving outwards in the negative z direction.
+    if (leg_id == "FL") | (leg_id == "BL"):
+        z_leg = -1 * z_leg
+
+    # Position of foot in leg frame
+    foot_l = np.array([x_leg, y_leg, z_leg])
+
+    if (leg_id == "FL"):
+        leg_frame = [+body_length / 2, 0, -body_width / 2]
+
+    elif (leg_id == "FR"):
+        leg_frame = [+body_length / 2, 0, +body_width / 2]
+
+    elif (leg_id == "BL"):
+        leg_frame = [-body_length / 2, 0, -body_width / 2]
+
+    elif (leg_id == "BR"):
+        leg_frame = [-body_length / 2, 0, +body_width / 2]
+
+    else:
+        valid = False
+        leg_frame = [0, 0, 0]
+
+    # Position of foot in body_frame
+    foot_b = foot_l + np.array(leg_frame)
+
+    foot_b_transform = np.array([foot_b[0], -foot_b[2], foot_b[1]])
+
+    return valid, foot_b_transform
 
 
-def rotationMatrixToEulerAngles(R) :
-    '''
-    Coverts rotation matrix to euler angles
+def legFrame_to_BodyFrame_Laikago(leg_id, hip_angle, knee_angle, abd_angle):
+    ''
+    Function to determine the positon of the foot in the body frame.
     Args:
-        R : Rotation matrix to be converted
+        hip_angle : Angle of the hip joint in radians
+        knee_angle: Angle of the knee joint in radians
+        abd_angle : Angle of the abduction joint in radians
+        leg_id    : One of the following strings: "FL", "FR", "BL", "BR"
+    Ret:
+        valid    : A flag to indicate if the results are valid or not
+        [x, y, z]: Position co-ordinates of the foot in the body frame.
+
+    Note: In this case the x-axis points forward, y-axis points upwards and
+    the positive z-axis points towards the right.
+    abd_angle is measured w.r.t the negative y-axis with CCW positive
+    ''
+    # Robot paramters
+    body_length = 0.8#0.717
+    body_width = 0.26 #0.414
+
+    # Co-ordinates in leg-frame
+    x_leg, y_leg, z_leg = 0.0, 0.0, 0.0
+
+    # leg = LaikagoKinematics()
+    x_l, y_l = leg.forwardKinematics([hip_angle, knee_angle])
+    valid = True
+    # Return if the data is invalid
+    if (valid == False):
+        return False, [0, 0, 0]
+
+    x_leg = x_l
+    y_leg = y_l * np.cos(abd_angle)
+    z_leg = -y_l * np.sin(abd_angle)
+
+    # For the left legs, positive abduction angle
+    # corresponds to moving outwards in the negative z direction.
+    if (leg_id == "FL") | (leg_id == "BL"):
+        z_leg = -1 * z_leg
+
+    # Position of foot in leg frame
+    foot_l = np.array([x_leg, y_leg, z_leg])
+
+    if (leg_id == "FL"):
+        leg_frame = [+body_length / 2, 0, -body_width / 2]
+
+    elif (leg_id == "FR"):
+        leg_frame = [+body_length / 2, 0, +body_width / 2]
+
+    elif (leg_id == "BL"):
+        leg_frame = [-body_length / 2, 0, -body_width / 2]
+
+    elif (leg_id == "BR"):
+        leg_frame = [-body_length / 2, 0, +body_width / 2]
+
+    else:
+        valid = False
+        leg_frame = [0, 0, 0]
+
+    # Position of foot in body_frame
+    foot_b = foot_l + np.array(leg_frame)
+
+    foot_b_transform = np.array([foot_b[0], -foot_b[2], foot_b[1]])
+
+    return valid, foot_b_transform
+
+
+def legFrame_to_BodyFrame_Stoch2(leg_id, hip_angle, knee_angle, abd_angle):
+    ''
+    Function to determine the positon of the foot in the body frame.
+    Args:
+        hip_angle : Angle of the hip joint in radians
+        knee_angle: Angle of the knee joint in radians
+        abd_angle : Angle of the abduction joint in radians
+        leg_id    : One of the following strings: "FL", "FR", "BL", "BR"
     Returns:
-        [x,y,z] : The list of euler angles in the order roll(x), pitch(y) and yaw(z)
+        valid    : A flag to indicate if the results are valid or not
+        [x, y, z]: Position co-ordinates of the foot in the body frame.
+
+    Note: In this case the x-axis points forward, y-axis points upwards and 
+    the positive z-axis points towards the right.
+    abd_angle is measured w.r.t the negative y-axis with CCW positive
+    ''
+    # Robot paramters
+    body_length = 0.37
+    body_width = 0.24
+
+    # Co-ordinates in leg-frame
+    x_leg, y_leg, z_leg = 0.0, 0.0, 0.0
+
+    # leg = Stoch2Kinematics()
+    valid, [x_l, y_l] = leg.forwardKinematics([hip_angle, knee_angle])
+
+    # Return if the data is invalid
+    if (valid == False):
+        return False, [0,0,0]
+
+    y_l = y_l + 0.035
+    x_leg =  x_l
+    y_leg =  y_l * np.cos(abd_angle)
+    z_leg = -y_l * np.sin(abd_angle)
+
+
+    # For the left legs, positive abduction angle 
+    # corresponds to moving outwards in the negative z direction.
+    if (leg_id == "FL") | (leg_id == "BL"):
+        z_leg = -1*z_leg
+
+    # Position of foot in leg frame
+    foot_l = np.array([x_leg, y_leg, z_leg])
+
+    if (leg_id == "FL"):
+        leg_frame = [+body_length/2, 0, -body_width/2]
+
+    elif (leg_id == "FR"):
+        leg_frame = [+body_length/2, 0, +body_width/2]
+
+    elif (leg_id == "BL"):
+        leg_frame = [-body_length/2, 0, -body_width/2]
+   
+    elif (leg_id == "BR"):
+        leg_frame = [-body_length/2, 0, +body_width/2]
+
+    else:
+        valid = False
+        leg_frame = [0,0,0]
     
-    '''    
-    sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
-    
-    singular = sy < 1e-6
+    # Position of foot in body_frame
+    foot_b = foot_l + np.array(leg_frame)
 
-    if  not singular :
-        x = math.atan2(R[2,1] , R[2,2])
-        y = math.atan2(-R[2,0], sy)
-        z = math.atan2(R[1,0], R[0,0])
-    else :
-        x = math.atan2(-R[1,2], R[1,1])
-        y = math.atan2(-R[2,0], sy)
-        z = 0
+    foot_b_transform = np.array([foot_b[0],-foot_b[2], foot_b[1]])
 
-    return np.array([x, y, z])
-
-if __name__ == "__main__":
-    leg        = Stoch2Kinematics()
-    foot_pos   = [0.0, -0.2]
-    valid, q   = leg.inverseKinematics(np.array(foot_pos))
-
-    # Find position of foot in body frame using joint angle data
-    hip_angle  = q[0]
-    knee_angle = q[3]
-    abd_angle = 0
-    valid, x = legFrame_to_BodyFrame(hip_angle, knee_angle, abd_angle, "FL")
-    print(x)
-    # new_pos = transformation(rot, x)
-
-    # Normal vector to plane containing three points
-    x = planeNormal([1,0,0],[1,1,0],[2,3,0])
-    print(x, np.linalg.norm(x))
+    return valid, foot_b_transform
+'''

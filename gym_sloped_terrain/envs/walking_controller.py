@@ -26,6 +26,7 @@ no_of_points = 100
 @dataclass
 class leg_data:
     name: str
+    ID: int
     motor_hip: float = 0.0
     motor_knee: float = 0.0
     motor_abduction: float = 0.0
@@ -42,10 +43,10 @@ class leg_data:
 
 @dataclass
 class robot_data:
-    front_right: leg_data = leg_data('fr')
-    front_left: leg_data = leg_data('fl')
-    back_right: leg_data = leg_data('br')
-    back_left: leg_data = leg_data('bl')
+    front_left: leg_data = leg_data('FL', 1)
+    front_right: leg_data = leg_data('FR', 2)
+    back_left: leg_data = leg_data('BL', 3)
+    back_right: leg_data = leg_data('BR', 4)
 
 
 class WalkingController():
@@ -54,10 +55,10 @@ class WalkingController():
                  phase=[0, PI, PI, 0],
                  ):
         self._phase = robot_data(front_right=phase[0], front_left=phase[1], back_right=phase[2], back_left=phase[3])
-        self.front_left = leg_data('fl')
-        self.front_right = leg_data('fr')
-        self.back_left = leg_data('bl')
-        self.back_right = leg_data('br')
+        self.front_left = leg_data('FL', 1)
+        self.front_right = leg_data('FR', 2)
+        self.back_left = leg_data('BL', 3)
+        self.back_right = leg_data('BR', 4)
         self.gait_type = gait_type
 
         self.MOTOROFFSETS_Stoch2 = [2.3562, 1.2217]
@@ -65,11 +66,12 @@ class WalkingController():
         self.MOTOROFFSETS_HYQ = [1.57, 0]
         self.MOTOROFFSETS_Stochlite = [PI/2, 0] # [0, 0]
 
+        self.link_lengths_stochlite = [0.096, 0.146, 0.172]
 
-        self.leg_name_to_sol_branch_HyQ = {'fl': 0, 'fr': 0, 'bl': 1, 'br': 1}
-        self.leg_name_to_dir_Laikago = {'fl': 1, 'fr': -1, 'bl': 1, 'br': -1}
-        self.leg_name_to_sol_branch_Laikago = {'fl': 0, 'fr': 0, 'bl': 0, 'br': 0}
-        # self.leg_name_to_sol_branch_Stochlite = {'fl': 1, 'fr': -1, 'bl': 1, 'br': -1}
+        self.leg_name_to_sol_branch_HyQ = {'FL': 0, 'FR': 0, 'BL': 1, 'BR': 1}
+        self.leg_name_to_dir_Laikago = {'FL': 1, 'FR': -1, 'BL': 1, 'BR': -1}
+        self.leg_name_to_sol_branch_Laikago = {'FL': 0, 'FR': 0, 'BL': 0, 'BR': 0}
+        # self.leg_name_to_sol_branch_Stochlite = {'FL': 1, 'FR': -1, 'BL': 1, 'BR': -1}
 
         self.body_width = 0.24
         self.body_length = 0.37
@@ -166,7 +168,7 @@ class WalkingController():
             leg.r = leg.step_length / 2
 
             if self.gait_type == "trot":
-                x = -leg.r * np.cos(leg_theta) - leg.x_shift # negate this equation if the bot walks backwards
+                x = -leg.r * np.cos(leg_theta) + leg.x_shift # negate this equation if the bot walks backwards
                 if leg_theta > PI: # theta taken from +x, CW # Flip this sigh if the trajectory is mirrored
                     flag = 0 #z-coordinate of ellipse, during stance_phase of walking
                 else:
@@ -180,32 +182,17 @@ class WalkingController():
             # positive values in action: abduction in, all legs come in under the body
             # vice versa
 
-            leg.y = leg.y + 0.096 + leg.y_shift # abd_link = 0.096, abd in x-z plane, not foot contact
-
-            branch = "<" 
-
-            # if leg.name == "fr" or leg.name == "bl":
-            #     branch = 1
-            # else:
-            #     branch = 2
+            if leg.name == "FR" or leg.name == "BR":
+                leg.y = leg.y - self.link_lengths_stochlite[0] + leg.y_shift
+            else:
+                leg.y = leg.y + self.link_lengths_stochlite[0] - leg.y_shift # abd_link = 0.096, abd in x-z plane, not foot contact 
             
-            print("In walking controller")
-            print(leg.x, leg.y, leg.z)
+            # print("In walking controller")
+            # print(leg.x, leg.y, leg.z)
 
-            _,[leg.motor_abduction, leg.motor_hip, leg.motor_knee] = self.stochlite_kin.inverseKinematics([leg.x, leg.y, leg.z], branch)
+            branch = "<"
+            _,[leg.motor_abduction, leg.motor_hip, leg.motor_knee] = self.stochlite_kin.inverseKinematics(leg.name, [leg.x, leg.y, leg.z], branch)
             # print(leg.motor_knee,leg.motor_hip,leg.motor_abduction)
-            # leg.motor_hip = -leg.motor_knee
-            if leg.name == "fr" or leg.name == "br":
-                leg.motor_abduction = -leg.motor_abduction
-            
-        # added pi/2 to all hip values: urdf takes -y as 0 reference, IK takes +x as 0 reference
-
-        # leg_motor_angles = [-legs.front_left.motor_hip + PI/2, -legs.front_left.motor_knee, -legs.front_right.motor_hip + PI/2,
-        #                     -legs.front_right.motor_knee,
-        #                     -legs.back_left.motor_hip + PI/2, -legs.back_left.motor_knee, -legs.back_right.motor_hip + PI/2,
-        #                     -legs.back_right.motor_knee,
-        #                     legs.front_left.motor_abduction, legs.front_right.motor_abduction,
-        #                     legs.back_left.motor_abduction, legs.back_right.motor_abduction]
 
         leg_motor_angles = [legs.front_left.motor_hip, legs.front_left.motor_knee, legs.front_right.motor_hip,
                             legs.front_right.motor_knee,
