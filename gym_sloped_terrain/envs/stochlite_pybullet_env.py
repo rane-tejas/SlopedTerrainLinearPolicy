@@ -9,6 +9,7 @@ import pybullet
 import gym_sloped_terrain.envs.bullet_client as bullet_client
 import pybullet_data
 import gym_sloped_terrain.envs.planeEstimation.get_terrain_normal as normal_estimator
+import matplotlib.pyplot as plt
 
 
 
@@ -41,7 +42,7 @@ class StochliteEnv(gym.Env):
 				 seed_value = 100,
 				 wedge = False,
 				 IMU_Noise = False,
-				 deg = 0): # deg = 5
+				 deg = 5): # deg = 5
 
 		self._is_stairs = stairs
 		self._is_wedge = wedge
@@ -64,8 +65,8 @@ class StochliteEnv(gym.Env):
 		self.downhill = downhill
 
 		#PD gains
-		self._kp = 1500
-		self._kd = 20
+		self._kp = 400
+		self._kd = 10
 
 		self.dt = 0.005
 		self._frame_skip = 25
@@ -560,7 +561,7 @@ class StochliteEnv(gym.Env):
 						foot_contact_info[leg + 4] = 1
 
 		# print(foot_contact_info)
-
+		# foot_contact_info = [1, 1, 1, 1]
 		return foot_contact_info
 
 
@@ -609,7 +610,7 @@ class StochliteEnv(gym.Env):
 		self._theta = constrain_theta(omega * self.dt + self._theta)
 		
 		m_angle_cmd_ext = np.array(leg_m_angle_cmd)
-	
+
 		m_vel_cmd_ext = np.zeros(12)
 
 		force_visualizing_counter = 0

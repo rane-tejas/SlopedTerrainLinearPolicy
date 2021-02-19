@@ -160,17 +160,16 @@ class Serial3RKinematics():
 
         abd_link = self.link_lengths[0]
         l = math.sqrt(y**2 + z**2)
-        # if l < abd_link:
-        #     valid = False
-        #     return valid, q
+        if l < abd_link:
+            valid = False
+            return valid, q
         z_prime = -math.sqrt(l**2 - abd_link**2)
+        t1 = math.atan2(-z_prime, abd_link)
 
         if leg_ID == "FR" or leg_ID == "BR":
-            t1 = math.atan2(-z_prime, abd_link)
             t2 = math.atan2(-y, -z)
             q[0] = PI/2 - t1 - t2
         else:
-            t1 = math.atan2(-z_prime, abd_link)
             t2 = math.atan2(y, -z)
             q[0] = t1 + t2 - PI/2
 
@@ -200,17 +199,18 @@ class Serial3RKinematics():
         abd_link = self.link_lengths[0]
         v = np.zeros(3)
 
-        if leg_ID == "FR" or leg_ID == "BR":
-            q_abd = -q[0]
-        else:
-            q_abd = q[0]
+        q_abd = q[0]
         q_hip = q[1]
         q_knee = q[2]
 
         v_temp = self.serial_2R.forwardKinematics([q_hip, q_knee])
         
+        if leg_ID == "FR" or leg_ID == "BR":
+            v[1] = -abd_link
+        else:
+            v[1] = abd_link
+
         v[0] = v_temp[0]
-        v[1] = abd_link
         v[2] = v_temp[1]
 
         v = rotX(q_abd) @ v
@@ -278,14 +278,14 @@ class StochliteKinematics(object):
 if __name__ == '__main__':
     #s = Serial2RKin([0,0],[0.15,0.175])
     s = StochliteKinematics()
-    valid, angles = s.inverseKinematics("FR", [0.1, -0.096,-0.25])
+    valid, angles = s.inverseKinematics("FR", [0, -0.096,-0.317999999])
     if valid:
         print(angles)
     else:
         print("invalid")
 
-    # angles = np.array([PI/2,0,0])
-    cordinates = s.forwardKinematics("FL", angles)
+    angles = np.array([-1.5705246792692433, -1.5695507528642707, 0.829469970861002])
+    cordinates = s.forwardKinematics("FR", angles)
     print(cordinates)
 
 #End of file

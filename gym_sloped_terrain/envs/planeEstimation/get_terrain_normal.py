@@ -45,10 +45,12 @@ def legFrame_to_BodyFrame_Stochlite(leg_id, abd_angle, hip_angle, knee_angle):
     # Co-ordinates in leg-frame
     x_leg, y_leg, z_leg = 0.0, 0.0, 0.0
 
+    # print("leg ID, Angles")
+    # print(leg_id, abd_angle, hip_angle, knee_angle)
     leg = StochliteKinematics()
     [x_leg, y_leg, z_leg] = leg.forwardKinematics(leg_id, [abd_angle, hip_angle, knee_angle])
-    print("leg ID, Plane Estimator")
-    print(leg_id, x_leg, y_leg, z_leg)
+    # print("leg ID, Plane Estimator")
+    # print(leg_id, x_leg, y_leg, z_leg)
 
     # Return if the data is invalid
     # if (valid == False):
@@ -85,11 +87,11 @@ def legFrame_to_BodyFrame_Stochlite(leg_id, abd_angle, hip_angle, knee_angle):
     
     # Position of foot in body_frame
     foot_b = foot_l + np.array(leg_frame)
-    print("foot_b", foot_b)
+    # print("foot_b", foot_b)
 
     foot_b_transform = np.array([foot_b[0],foot_b[1], foot_b[2]])
     # print("foot transform", foot_b_transform)
-
+    
     return foot_b_transform
 
 def planeNormal(pt_a, pt_b, pt_c):
@@ -191,10 +193,10 @@ def four_point_contact_check_Stochlite(legs, contact_info, rot_mat):
 
     if np.sum(contacts) == 4:
         four_contact_status = True
-        print("que: FR, BL",foot_pos_queue1)
-        print("que: FL, BR",foot_pos_queue2)
-        print("sent")
-        print(rot_mat)
+        # print("que: FR, BL",foot_pos_queue1)
+        # print("que: FL, BR",foot_pos_queue2)
+        # print("sent")
+        # print(rot_mat)
         for i in range(4):
             contacts[i] = 0
 
@@ -219,22 +221,22 @@ def vector_method_Stochlite(prev_normal_vec, contact_info, motor_angles, rot_mat
         euler_angles_of_support_plane[1] : the estimated pitch of the support plane
     '''
 
-    FL = leg_joint_info("FL", motor_angles[0], motor_angles[1], motor_angles[2])
-    FR = leg_joint_info("FR", motor_angles[3], motor_angles[4], motor_angles[5])
-    BL = leg_joint_info("BL", motor_angles[6], motor_angles[7], motor_angles[8])
-    BR = leg_joint_info("BR", motor_angles[9], motor_angles[10], motor_angles[11])
+    FL = leg_joint_info("FL", motor_angles[0], motor_angles[1], motor_angles[8]) # Hip, knee abd
+    FR = leg_joint_info("FR", motor_angles[2], motor_angles[3], motor_angles[9])
+    BL = leg_joint_info("BL", motor_angles[4], motor_angles[5], motor_angles[10])
+    BR = leg_joint_info("BR", motor_angles[6], motor_angles[7], motor_angles[11])
 
     Legs = namedtuple('legs', 'front_right front_left back_right back_left')
     legs = Legs(front_right=FR, front_left=FL, back_right=BR,
                 back_left=BL)
     four_contact_status, foot_contacts_vec1, foot_contacts_vec2 = four_point_contact_check_Stochlite(legs, contact_info, rot_mat)
 
-    print("Rot_mat", rot_mat)
-    euler_angles_rot_mat = rotationMatrixToEulerAngles(rot_mat)
-    print("EA", euler_angles_rot_mat)
+    # print("Rot_mat", rot_mat)
+    # euler_angles_rot_mat = rotationMatrixToEulerAngles(rot_mat)
+    # print("EA", euler_angles_rot_mat)
 
     if four_contact_status:
-        print("change")
+        # print("change")
         normal_vec = planeNormalFourPoint(foot_contacts_vec1[0], foot_contacts_vec1[1], foot_contacts_vec2[0], foot_contacts_vec2[1])
         plane_normal = normal_vec
 
@@ -242,7 +244,7 @@ def vector_method_Stochlite(prev_normal_vec, contact_info, motor_angles, rot_mat
         plane_normal = prev_normal_vec
 
     # plane_normal = [0, 0, 1]    
-    print("plane normal", plane_normal)
+    # print("plane normal", plane_normal)
     y_cap_of_support_plane = np.cross(plane_normal,transformation(rot_mat,np.array([1,0,0])))
     x_cap_of_support_plane = np.cross(y_cap_of_support_plane,plane_normal)
 
