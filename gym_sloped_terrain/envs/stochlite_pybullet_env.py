@@ -42,7 +42,7 @@ class StochliteEnv(gym.Env):
 				 seed_value = 100,
 				 wedge = False,
 				 IMU_Noise = False,
-				 deg = 5): # deg = 5
+				 deg = 0): # deg = 5
 
 		self._is_stairs = stairs
 		self._is_wedge = wedge
@@ -386,7 +386,7 @@ class StochliteEnv(gym.Env):
 			self.clips = cli[idxc]
 
 		else:
-			avail_deg = [0, 0, 0] # [5,7,9,11], changed for stochlite
+			avail_deg = [0, 0, 0, 0] # [5,7,9,11], changed for stochlite
 			extra_link_mass=[0,.05,0.1,0.15]
 			pertub_range = [0, -60, 60, -100, 100]
 			cli=[5,6,7,8]
@@ -394,7 +394,7 @@ class StochliteEnv(gym.Env):
 			self.x_f = 0
 			self.y_f = pertub_range[random.randint(0,4)]
 			self.incline_deg = avail_deg[random.randint(0,2)]
-			# self.incline_ori = (PI/12)*random.randint(0,6) #resolution of 15 degree, changed for stochlite
+			self.incline_ori = (PI/12)*random.randint(0,6) #resolution of 15 degree, changed for stochlite
 			self.new_fric_val = np.round(np.clip(np.random.normal(0.6,0.08),0.55,0.8),2)
 			self.friction = self.SetFootFriction(self.new_fric_val)
 			# i=random.randint(0,3)
@@ -403,7 +403,7 @@ class StochliteEnv(gym.Env):
 			# self.BackMass = self.SetLinkMass(11,extra_link_mass[i])
 			self.clips = np.round(np.clip(np.random.normal(6.5,0.4),5,8),2)
 
-	def randomize_only_inclines(self, default=True, idx1=0, idx2=0, deg=0, ori=0): # deg = 5, changed for stochlite
+	def randomize_only_inclines(self, default=True, idx1=0, idx2=0, deg = 0, ori = 0): # deg = 5, changed for stochlite
 		'''
 		This function only randomizes the wedge incline and orientation and is called during training without Domain Randomization
 		'''
@@ -412,7 +412,7 @@ class StochliteEnv(gym.Env):
 			# self.incline_ori = ori + PI / 6 * idx2
 
 		else:
-			avail_deg = [0, 0, 0] # [5, 7, 9, 11]
+			avail_deg = [0, 0, 0, 0] # [5, 7, 9, 11]
 			self.incline_deg = avail_deg[random.randint(0, 2)]
 			# self.incline_ori = (PI / 12) * random.randint(0, 6)  # resolution of 15 degree
 
@@ -507,22 +507,22 @@ class StochliteEnv(gym.Env):
 
 		'''
 		Action changed
-        action[:4] -> step_length fr fl br bl
+        action[:4] -> step_length fl fr bl br
         action[4:8] -> steer angle 
-        action[8:12] -> x_shift fr fl br bl
-        action[12:16] -> y_shift fr fl br bl
-        action[16:20] -> z_shift fr fl br bl
+        action[8:12] -> x_shift fl fr bl br
+        action[12:16] -> y_shift fl fr bl br
+        action[16:20] -> z_shift fl fr bl br
 		'''
 
 		action = np.clip(action,-1,1)
 
 		action[:4] = (action[:4]+1)/2 	# Step lengths are positive always
 		
-		action[:4] = action[:4] * 0.2 # Max step length = 2x0.1 =0.2
+		action[:4] = action[:4] * 0.2 + 0.13 # Max step length = 2x0.1 =0.2
 
 		action[8:12] = action[8:12]
 
-		action[12:16] = action[12:16] * 0.14 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
+		action[12:16] = action[12:16] * 0.14 + 0.06 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
 
 		action[16:20] = action[16:20] * 0.1 # Z_shift can be +/- 0.1 from z center
 
@@ -637,7 +637,7 @@ class StochliteEnv(gym.Env):
 
 		plane_normal, self.support_plane_estimated_roll, self.support_plane_estimated_pitch = normal_estimator.vector_method_Stochlite(self.prev_incline_vec, contact_info, self.GetMotorAngles(), Rot_Mat)
 		self.prev_incline_vec = plane_normal
-		print("estimate", self.support_plane_estimated_roll, self.support_plane_estimated_pitch)
+		# print("estimate", self.support_plane_estimated_roll, self.support_plane_estimated_pitch)
 
 		self._n_steps += 1
 

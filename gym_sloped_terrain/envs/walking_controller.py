@@ -99,20 +99,20 @@ class WalkingController():
         Initialize desired X, Y, Z offsets of elliptical trajectory for each leg
         '''
 
-        self.front_right.x_shift = x_shift[0]
-        self.front_left.x_shift = x_shift[1]
-        self.back_right.x_shift = x_shift[2]
-        self.back_left.x_shift = x_shift[3]
-
-        self.front_right.y_shift = y_shift[0]
-        self.front_left.y_shift = y_shift[1]
-        self.back_right.y_shift = y_shift[2]
-        self.back_left.y_shift = y_shift[3]
-
-        self.front_right.z_shift = z_shift[0]
-        self.front_left.z_shift = z_shift[1]
-        self.back_right.z_shift = z_shift[2]
-        self.back_left.z_shift = z_shift[3]
+        self.front_left.x_shift = x_shift[0]
+        self.front_right.x_shift = x_shift[1]
+        self.back_left.x_shift = x_shift[2]
+        self.back_right.x_shift = x_shift[3]
+        
+        self.front_left.y_shift = y_shift[0]
+        self.front_right.y_shift = y_shift[1]
+        self.back_left.y_shift = y_shift[2]
+        self.back_right.y_shift = y_shift[3]
+        
+        self.front_left.z_shift = z_shift[0]
+        self.front_right.z_shift = z_shift[1]
+        self.back_left.z_shift = z_shift[2]
+        self.back_right.z_shift = z_shift[3]
 
     def initialize_leg_state(self, theta, action):
         '''
@@ -138,11 +138,11 @@ class WalkingController():
         self._update_leg_step_length_val(leg_sl)
         
         # Action changed
-        # action[:4] -> step_length fr fl br bl
+        # action[:4] -> step_length fl fr bl br
         # action[4:8] -> steer angle 
-        # action[8:12] -> x_shift fr fl br bl
-        # action[12:16] -> y_shift fr fl br bl
-        # action[16:20] -> z_shift fr fl br bl
+        # action[8:12] -> x_shift fl fr bl br
+        # action[12:16] -> y_shift fl fr bl br
+        # action[16:20] -> z_shift fl fr bl br
 
         self.initialize_elipse_shift(action[8:12], action[12:16], action[16:20])
 
@@ -179,16 +179,13 @@ class WalkingController():
                 [[np.cos(leg.phi), -np.sin(leg.phi), 0], [np.sin(leg.phi), np.cos(leg.phi), 0], [0, 0, 1]]) @ np.array(
                 [x, 0, z]) # rotating about z by steer_angle phi, CCW
 
-            # positive values in action: abduction in, all legs come in under the body
-            # vice versa
-
             if leg.name == "FR" or leg.name == "BR":
                 leg.y = leg.y - self.link_lengths_stochlite[0] + leg.y_shift
             else:
-                leg.y = leg.y + self.link_lengths_stochlite[0] - leg.y_shift # abd_link = 0.096, abd in x-z plane, not foot contact 
+                leg.y = leg.y + self.link_lengths_stochlite[0] + leg.y_shift # abd_link = 0.096, abd in x-z plane, not foot contact 
             
             # print("In walking controller")
-            # print(leg.x, leg.y, leg.z)
+            # print(leg.name, leg.x, leg.y, leg.z)
 
             branch = "<"
             _,[leg.motor_abduction, leg.motor_hip, leg.motor_knee] = self.stochlite_kin.inverseKinematics(leg.name, [leg.x, leg.y, leg.z], branch)
@@ -201,6 +198,7 @@ class WalkingController():
                             legs.front_left.motor_abduction, legs.front_right.motor_abduction,
                             legs.back_left.motor_abduction, legs.back_right.motor_abduction]
         
+        # leg_motor_angles = np.zeros(12) 
         # print("Angles")
         # print(leg_motor_angles)
 
@@ -211,21 +209,23 @@ class WalkingController():
         Args:
              leg_phi : steering angles for each leg trajectories
         '''
-        self.front_right.phi = leg_phi[0]
-        self.front_left.phi = leg_phi[1]
-        self.back_right.phi = leg_phi[2]
-        self.back_left.phi = leg_phi[3]
-
+        
+        self.front_left.phi = leg_phi[0]
+        self.front_right.phi = leg_phi[1]
+        self.back_left.phi = leg_phi[2]
+        self.back_right.phi = leg_phi[3]
+        
     def _update_leg_step_length_val(self, step_length):
         '''
         Args:
             step_length : step length of each leg trajectories
         '''
-        self.front_right.step_length = step_length[0]
-        self.front_left.step_length = step_length[1]
-        self.back_right.step_length = step_length[2]
-        self.back_left.step_length = step_length[3]
-
+        
+        self.front_left.step_length = step_length[0]
+        self.front_right.step_length = step_length[1]
+        self.back_left.step_length = step_length[2]
+        self.back_right.step_length = step_length[3]
+        
 
     '''
     Conventions for all robots below this needs to be changed.
