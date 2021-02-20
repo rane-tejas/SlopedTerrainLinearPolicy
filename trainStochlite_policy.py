@@ -185,8 +185,8 @@ def policyevaluation(env, policy, hp):
 
         # Evaluation Dataset with domain randomization
         # --------------------------------------------------------------
-        incline_deg_range = [0] #[3, 4]  # 9, 11
-        incline_ori_range =  [0]#[0, 2, 3]  # 0, 60, 90 degree
+        incline_deg_range = [1, 2] #[7, 9] #[3, 4]  # 9, 11
+        incline_ori_range =  [0, 2, 3]#[0, 2, 3]  # 0, 60, 90 degree
         fric = [0, 1]  # surface friction 0.55, 0.6
         mf = [0]  # extra mass at front 0gm
         mb = [0]  # extra mass at back 0gm
@@ -211,8 +211,8 @@ def policyevaluation(env, policy, hp):
     else:
         # Evaluation Dataset without domain randomization
         # --------------------------------------------------------------
-        incline_deg_range = [0]  # [2,3] 11, 13
-        incline_ori_range = [0]  # [0,2,3] 0, 30, 45 degree
+        incline_deg_range = [1, 2] #[7, 9]  # [2,3] 11, 13
+        incline_ori_range = [0, 2, 3]  # [0,2,3] 0, 30, 45 degree
         # --------------------------------------------------------------
         total_combinations = len(incline_deg_range) * len(incline_ori_range)
 
@@ -255,11 +255,11 @@ def train(env, policy, hp, parentPipes, args):
             env.randomize_only_inclines()
         # Cirriculum learning
         if (step > hp.curilearn):
-            avail_deg = [0] #[7, 9, 11, 13]
-            env.incline_deg = 0 #avail_deg[random.randint(0, 3)]
+            avail_deg = [5, 7, 9] #[7, 9, 11, 13]
+            env.incline_deg = avail_deg[random.randint(0, 2)]
         else:
-            avail_deg = [0] #[7, 9]
-            env.incline_deg = 0 #avail_deg[random.randint(0, 1)]
+            avail_deg = [5, 7, 9] #[7, 9]
+            env.incline_deg = avail_deg[random.randint(0, 2)]
 
         # Initializing the perturbations deltas and the positive/negative rewards
         deltas = policy.sample_deltas()
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     parser.add_argument('--stairs', help='add stairs to the bezier environment', type=int, default=0)
     parser.add_argument('--action_dim', help='degree of the spline polynomial used in the training', type=int,default=20)
     parser.add_argument('--directions', help='divising factor of total directions to use', type=int, default=2)
-    parser.add_argument('--curi_learn', help='after how many iteration steps second stage of curriculum learning should start', type=int, default=0) # removing curriculum learning
+    parser.add_argument('--curi_learn', help='after how many iteration steps second stage of curriculum learning should start', type=int, default=0) # default 10, removing curriculum learning
     parser.add_argument('--eval_step', help='policy evaluation after how many steps should take place', type=int, default=3)
     parser.add_argument('--domain_Rand', help='add domain randomization', type=int, default=0) #switching off DR
     parser.add_argument('--anti_clock_ori', help='rotate the inclines anti-clockwise', type=bool, default=True)

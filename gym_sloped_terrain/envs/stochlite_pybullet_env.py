@@ -42,7 +42,7 @@ class StochliteEnv(gym.Env):
 				 seed_value = 100,
 				 wedge = False,
 				 IMU_Noise = False,
-				 deg = 0): # deg = 5
+				 deg = 5): # deg = 5
 
 		self._is_stairs = stairs
 		self._is_wedge = wedge
@@ -363,7 +363,7 @@ class StochliteEnv(gym.Env):
 		return m[0]
 	
 
-	def Set_Randomization(self, default = True, idx1 = 0, idx2=0, idx3=1, idx0=0, idx11=0, idxc=2, idxp=0, deg = 0, ori = 0): # deg = 5, changed for stochlite
+	def Set_Randomization(self, default = True, idx1 = 0, idx2=0, idx3=1, idx0=0, idx11=0, idxc=2, idxp=0, deg = 5, ori = 0): # deg = 5, changed for stochlite
 		'''
 		This function helps in randomizing the physical and dynamics parameters of the environment to robustify the policy.
 		These parameters include wedge incline, wedge orientation, friction, mass of links, motor strength and external perturbation force.
@@ -378,7 +378,7 @@ class StochliteEnv(gym.Env):
 			self.x_f = 0
 			self.y_f = pertub_range[idxp]
 			self.incline_deg = deg + 2*idx1
-			# self.incline_ori = ori + PI/6*idx2
+			self.incline_ori = ori + PI/12*idx2
 			self.new_fric_val =frc[idx3]
 			self.friction = self.SetFootFriction(self.new_fric_val)
 			# self.FrontMass = self.SetLinkMass(0,extra_link_mass[idx0])
@@ -386,7 +386,7 @@ class StochliteEnv(gym.Env):
 			self.clips = cli[idxc]
 
 		else:
-			avail_deg = [0, 0, 0, 0] # [5,7,9,11], changed for stochlite
+			avail_deg = [5, 7, 9] # [5,7,9,11], changed for stochlite
 			extra_link_mass=[0,.05,0.1,0.15]
 			pertub_range = [0, -60, 60, -100, 100]
 			cli=[5,6,7,8]
@@ -403,18 +403,18 @@ class StochliteEnv(gym.Env):
 			# self.BackMass = self.SetLinkMass(11,extra_link_mass[i])
 			self.clips = np.round(np.clip(np.random.normal(6.5,0.4),5,8),2)
 
-	def randomize_only_inclines(self, default=True, idx1=0, idx2=0, deg = 0, ori = 0): # deg = 5, changed for stochlite
+	def randomize_only_inclines(self, default=True, idx1=0, idx2=0, deg = 5, ori = 0): # deg = 5, changed for stochlite
 		'''
 		This function only randomizes the wedge incline and orientation and is called during training without Domain Randomization
 		'''
 		if default:
 			self.incline_deg = deg + 2 * idx1
-			# self.incline_ori = ori + PI / 6 * idx2
+			self.incline_ori = ori + PI / 12 * idx2
 
 		else:
-			avail_deg = [0, 0, 0, 0] # [5, 7, 9, 11]
+			avail_deg = [5, 7, 9] # [5, 7, 9, 11]
 			self.incline_deg = avail_deg[random.randint(0, 2)]
-			# self.incline_ori = (PI / 12) * random.randint(0, 6)  # resolution of 15 degree
+			self.incline_ori = (PI / 12) * random.randint(0, 6)  # resolution of 15 degree
 
 
 	def boundYshift(self, x, y):
@@ -518,11 +518,11 @@ class StochliteEnv(gym.Env):
 
 		action[:4] = (action[:4]+1)/2 	# Step lengths are positive always
 		
-		action[:4] = action[:4] * 0.2 + 0.13 # Max step length = 2x0.1 =0.2
+		action[:4] = action[:4] * 0.2 # + 0.13 # Max step length = 2x0.1 =0.2
 
 		action[8:12] = action[8:12]
 
-		action[12:16] = action[12:16] * 0.14 + 0.06 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
+		action[12:16] = action[12:16] * 0.14 #+ 0.06 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
 
 		action[16:20] = action[16:20] * 0.1 # Z_shift can be +/- 0.1 from z center
 
