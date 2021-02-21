@@ -131,7 +131,6 @@ class StochliteEnv(gym.Env):
 		self.support_plane_estimated_pitch = 0
 		self.support_plane_estimated_roll = 0
 
-
 		self.pertub_steps = 0
 		self.x_f = 0
 		self.y_f = 0
@@ -196,7 +195,8 @@ class StochliteEnv(gym.Env):
 				self.robot_landing_height = wedge_halfheight_offset + 0.28 + math.tan(
 					math.radians(self.incline_deg)) * abs(self.wedge_start)
 
-				self.INIT_POSITION = [self.INIT_POSITION[0], self.INIT_POSITION[1], self.robot_landing_height]
+				# self.INIT_POSITION = [self.INIT_POSITION[0], self.INIT_POSITION[1], self.robot_landing_height]
+				self.INIT_POSITION = [0, 0, self.robot_landing_height]
 
 			else:
 				wedge_model_path = "gym_sloped_terrain/envs/Wedges/downhill/urdf/wedge_" + str(
@@ -376,9 +376,9 @@ class StochliteEnv(gym.Env):
 			pertub_range = [0, -60, 60, -100, 100]
 			self.pertub_steps = 150 
 			self.x_f = 0
-			self.y_f = pertub_range[idxp]
+			# self.y_f = pertub_range[idxp]
 			self.incline_deg = deg + 2*idx1
-			self.incline_ori = ori + PI/12*idx2
+			# self.incline_ori = ori + PI/12*idx2
 			self.new_fric_val =frc[idx3]
 			self.friction = self.SetFootFriction(self.new_fric_val)
 			# self.FrontMass = self.SetLinkMass(0,extra_link_mass[idx0])
@@ -386,15 +386,15 @@ class StochliteEnv(gym.Env):
 			self.clips = cli[idxc]
 
 		else:
-			avail_deg = [5, 7, 9] # [5,7,9,11], changed for stochlite
+			avail_deg = [5, 7, 9, 11] # [5,7,9,11], changed for stochlite
 			extra_link_mass=[0,.05,0.1,0.15]
 			pertub_range = [0, -60, 60, -100, 100]
 			cli=[5,6,7,8]
 			self.pertub_steps = 150 #random.randint(90,200) #Keeping fixed for now
 			self.x_f = 0
-			self.y_f = pertub_range[random.randint(0,4)]
-			self.incline_deg = avail_deg[random.randint(0,2)]
-			self.incline_ori = (PI/12)*random.randint(0,6) #resolution of 15 degree, changed for stochlite
+			# self.y_f = pertub_range[random.randint(0,4)]
+			self.incline_deg = avail_deg[random.randint(0,3)]
+			# self.incline_ori = (PI/12)*random.randint(0,6) #resolution of 15 degree, changed for stochlite
 			self.new_fric_val = np.round(np.clip(np.random.normal(0.6,0.08),0.55,0.8),2)
 			self.friction = self.SetFootFriction(self.new_fric_val)
 			# i=random.randint(0,3)
@@ -737,14 +737,34 @@ class StochliteEnv(gym.Env):
 			reward = round(yaw_reward, 4) + round(pitch_reward, 4) + round(roll_reward, 4)\
 					 + round(height_reward,4) + 100 * round(step_distance_x, 4) - 50 * round(step_distance_y, 4)
 
-			'''
-			#Penalize for standing at same position for continuous 150 steps
-			self.step_disp.append(step_distance_x)
-		
-			if(self._n_steps>150):
-				if(sum(self.step_disp)<0.035):
-					reward = reward-standing_penalty
-			'''
+		'''
+		#Penalize for standing at same position for continuous 150 steps
+		self.step_disp.append(step_distance_x)
+	
+		if(self._n_steps>150):
+			if(sum(self.step_disp)<0.035):
+				reward = reward-standing_penalty
+		'''
+		# Testing reward function
+
+		# reward_info = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+		# done = self._termination(pos, ori)
+		# if done:
+		# 	reward = 0
+		# else:
+		# 	reward_info[0] = round(roll_reward, 4)
+		# 	reward_info[1] = round(pitch_reward, 4)
+		# 	reward_info[2] = round(yaw_reward, 4)
+		# 	reward_info[3] = round(height_reward, 4)
+		# 	reward_info[4] = 100 * round(step_distance_x, 4)
+		# 	reward_info[5] = -50 * round(step_distance_y, 4)
+		# 	reward_info[6] = self.support_plane_estimated_roll
+		# 	reward_info[7] = self.support_plane_estimated_pitch
+
+		# 	reward = round(yaw_reward, 4) + round(pitch_reward, 4) + round(roll_reward, 4)\
+		# 			 + round(height_reward,4) + 100 * round(step_distance_x, 4) - 50 * round(step_distance_y, 4)
+
+		# reward_info[8] = reward
 
 		return reward, done
 

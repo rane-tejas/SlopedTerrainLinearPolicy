@@ -18,7 +18,7 @@ if __name__ == '__main__':
 	parser.add_argument('--FrontMass', help='mass to be added in the first', type=float, default=0)
 	parser.add_argument('--BackMass', help='mass to be added in the back', type=float, default=0)
 	parser.add_argument('--FrictionCoeff', help='foot friction value to be set', type=float, default=0.6)
-	parser.add_argument('--WedgeIncline', help='wedge incline degree of the wedge', type=int, default=7) # default 11
+	parser.add_argument('--WedgeIncline', help='wedge incline degree of the wedge', type=int, default=5) # default 11
 	parser.add_argument('--WedgeOrientation', help='wedge orientation degree of the wedge', type=float, default=0)
 	parser.add_argument('--MotorStrength', help='maximum motor Strength to be applied', type=float, default=7.0)
 	parser.add_argument('--RandomTest', help='flag to sample test values randomly ', type=bool, default=False)
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 	t_r = 0
 	for i_step in range(args.EpisodeLength):
 		action = policy.dot(state)
-		print("before env", action)
+		# print("before env", action)
 		state, r, _, angle = env.step(action)
 		# print(np.degrees(state[6:9]))
 		# print("after env", action)

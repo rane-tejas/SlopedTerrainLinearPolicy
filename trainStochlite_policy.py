@@ -185,9 +185,9 @@ def policyevaluation(env, policy, hp):
 
         # Evaluation Dataset with domain randomization
         # --------------------------------------------------------------
-        incline_deg_range = [1, 2] #[7, 9] #[3, 4]  # 9, 11
-        incline_ori_range =  [0, 2, 3]#[0, 2, 3]  # 0, 60, 90 degree
-        fric = [0, 1]  # surface friction 0.55, 0.6
+        incline_deg_range = [0, 1, 2, 3] #[7, 9] #[3, 4]  # 9, 11
+        incline_ori_range =  [0]#[0, 2, 3]  # 0, 60, 90 degree
+        fric = [0, 1, 2]  # surface friction 0.55, 0.6
         mf = [0]  # extra mass at front 0gm
         mb = [0]  # extra mass at back 0gm
         ms = [0, 1]  # motorstrength 0.52, 0.6
@@ -369,7 +369,7 @@ if __name__ == "__main__":
     parser.add_argument('--directions', help='divising factor of total directions to use', type=int, default=2)
     parser.add_argument('--curi_learn', help='after how many iteration steps second stage of curriculum learning should start', type=int, default=0) # default 10, removing curriculum learning
     parser.add_argument('--eval_step', help='policy evaluation after how many steps should take place', type=int, default=3)
-    parser.add_argument('--domain_Rand', help='add domain randomization', type=int, default=0) #switching off DR
+    parser.add_argument('--domain_Rand', help='add domain randomization', type=int, default=1)
     parser.add_argument('--anti_clock_ori', help='rotate the inclines anti-clockwise', type=bool, default=True)
     args = parser.parse_args()
     walk = [0, PI, PI / 2, 3 * PI / 2]
