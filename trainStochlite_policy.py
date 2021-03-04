@@ -111,6 +111,7 @@ def ExploreWorker(rank, childPipe, envname, args):
             num_plays = 0.
             sum_rewards = 0
             while num_plays < hp.episode_length:
+                env.updateCommands(num_plays, hp.episode_length)
                 action = policy.evaluate(state, delta, direction, hp)
                 state, reward, done, _ = env.step(action)
                 sum_rewards += reward
@@ -171,6 +172,7 @@ def explore(env, policy, direction, delta, hp):
     num_plays = 0.
     sum_rewards = 0
     while num_plays < hp.episode_length:
+        env.updateCommands(num_plays, hp.episode_length)
         action = policy.evaluate(state, delta, direction, hp)
         state, reward, done, _ = env.step(action)
         sum_rewards += reward
@@ -185,9 +187,9 @@ def policyevaluation(env, policy, hp):
 
         # Evaluation Dataset with domain randomization
         # --------------------------------------------------------------
-        incline_deg_range = [0, 1, 2, 3] #[7, 9] #[3, 4]  # 9, 11
-        incline_ori_range =  [0]#[0, 2, 3]  # 0, 60, 90 degree
-        fric = [0, 1, 2]  # surface friction 0.55, 0.6
+        incline_deg_range = [0, 1, 2, 3] #[0, 1, 2, 3, 4] #[7, 9] #[3, 4]  # 9, 11
+        incline_ori_range =  [0]#[0, 1, 2, 3]#[0, 2, 3]  # 0, 60, 90 degree
+        fric = [1, 2]  # surface friction 0.55, 0.6
         mf = [0]  # extra mass at front 0gm
         mb = [0]  # extra mass at back 0gm
         ms = [0, 1]  # motorstrength 0.52, 0.6
@@ -211,8 +213,8 @@ def policyevaluation(env, policy, hp):
     else:
         # Evaluation Dataset without domain randomization
         # --------------------------------------------------------------
-        incline_deg_range = [1, 2] #[7, 9]  # [2,3] 11, 13
-        incline_ori_range = [0, 2, 3]  # [0,2,3] 0, 30, 45 degree
+        incline_deg_range = [0, 1, 2, 3] #[0, 1, 2, 3, 4] #[7, 9]  # [2,3] 11, 13
+        incline_ori_range = [0] #[0, 1, 2, 3]  # [0,2,3] 0, 30, 45 degree
         # --------------------------------------------------------------
         total_combinations = len(incline_deg_range) * len(incline_ori_range)
 
@@ -255,11 +257,11 @@ def train(env, policy, hp, parentPipes, args):
             env.randomize_only_inclines()
         # Cirriculum learning
         if (step > hp.curilearn):
-            avail_deg = [5, 7, 9] #[7, 9, 11, 13]
-            env.incline_deg = avail_deg[random.randint(0, 2)]
+            avail_deg = [5, 7, 9, 11] #[5, 7, 9, 11, 13] #[7, 9, 11, 13]
+            env.incline_deg = avail_deg[random.randint(0, 3)]
         else:
-            avail_deg = [5, 7, 9] #[7, 9]
-            env.incline_deg = avail_deg[random.randint(0, 2)]
+            avail_deg = [5, 7, 9, 11] #[5, 7, 9] #[7, 9]
+            env.incline_deg = avail_deg[random.randint(0, 3)]
 
         # Initializing the perturbations deltas and the positive/negative rewards
         deltas = policy.sample_deltas()

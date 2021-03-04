@@ -123,9 +123,9 @@ class WalkingController():
         Ret:
             legs   : namedtuple('legs', 'front_right front_left back_right back_left')
         '''
-        Legs = namedtuple('legs', 'front_right front_left back_right back_left')
-        legs = Legs(front_right=self.front_right, front_left=self.front_left, back_right=self.back_right,
-                    back_left=self.back_left)
+        Legs = namedtuple('legs', 'front_left front_right back_left back_right')
+        legs = Legs(front_left=self.front_left, front_right=self.front_right,
+                    back_left=self.back_left,  back_right=self.back_right)
 
         self.update_leg_theta(theta)
 
@@ -186,6 +186,15 @@ class WalkingController():
             
             # print("In walking controller")
             # print(leg.name, leg.x, leg.y, leg.z)
+
+            # if leg.name == "FR" or leg.name == "BR":
+            #     leg.x = -0.04
+            #     leg.y = -0.056
+            #     leg. z = -0.25
+            # else:
+            #     leg.x = -0.04
+            #     leg.y = 0.056
+            #     leg. z = -0.25
 
             branch = "<"
             _,[leg.motor_abduction, leg.motor_hip, leg.motor_knee] = self.stochlite_kin.inverseKinematics(leg.name, [leg.x, leg.y, leg.z], branch)

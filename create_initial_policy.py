@@ -63,23 +63,23 @@ tuned_actions_HyQ=   np.array([[0.0,0.0,0.0,0.0,
 '''
 # give tuned actions for diversified dataset when working with slopes, tuned actions wont affect much in flat ground walking
 
-tuned_actions_Stochlite = np.array([[0.3, 0.3, 0.3, 0.3, 
+tuned_actions_Stochlite = np.array([[-1.0, -1.0, -1.0, -1.0, 
 										0.0, 0.0, 0.0, 0.0,
-	                        			-0.05, -0.05, -0.05, -0.05,
-		                    			-0.2, 0.2, -0.2, 0.2,
+	                        			-0.02, -0.02, -0.02, -0.02,
+		                    			0.3, 0.3, 0.3, 0.3,
 		                    			0.0, 0.0, 0.0, 0.0],
 
-									[0.3, 0.3, 0.3, 0.3,
-					                    0.0, 0.0, 0.0, 0.0, 
-										-0.08, -0.08, -0.08, -0.08, 
-										-0.2, 0.2, -0.2, 0.2, 
-										0.0, 0.0, 0.0, 0.0]])
+									[-1.0, -1.0, -1.0, -1.0, 
+										0.0, 0.0, 0.0, 0.0,
+	                        			-0.04, -0.04, -0.04, -0.04,
+		                    			0.3, 0.3, 0.3, 0.3,
+		                    			0.0, 0.0, 0.0, 0.0],
 										
-									# [0.3, 0.3, 0.3, 0.3,
-					                #     0.0, 0.0, 0.0, 0.0, 
-									# 	0.0, 0.0, 0.0, 0.0, 
-									# 	-0.2, -0.2, -0.2, -0.2, 
-									# 	0.5, 0.5, 0.5, 0.5]])
+									[-1.0, -1.0, -1.0, -1.0, 
+										0.0, 0.0, 0.0, 0.0,
+	                        			-0.05, -0.05, -0.05, -0.05,
+		                    			0.3, 0.3, 0.3, 0.3,
+		                    			0.0, 0.0, 0.0, 0.0]])
 
 
 if (__name__ == '__main__'):
@@ -93,7 +93,7 @@ if (__name__ == '__main__'):
 	if(args.policyName == 'IP_'):
 		args.policyName += args.robotName
 	# NUmber of steps per episode
-	num_of_steps = 400
+	num_of_steps = 1000
 
 	# list that tracks the states and actions
 	states = []
@@ -101,9 +101,9 @@ if (__name__ == '__main__'):
 	do_supervised_learning = True
 
 	if(args.robotName == 'Stochlite'):
-		idx1 = [1, 2]
+		idx1 = [0, 2, 3]
 		idx2 = [0]
-		idx3 = [1]
+		idx3 = [2]
 		experiment_counter = 0
 		env = sl.StochliteEnv(render=True, wedge = True, stairs = False,on_rack=False, gait = 'trot')
 		for i in idx1:
@@ -117,11 +117,12 @@ if (__name__ == '__main__'):
 					pitch = 0
 					
 					for ii in np.arange(0,num_of_steps):
+						env.updateCommands(ii, num_of_steps)
 						cstate, r, _, info = env.step(tuned_actions_Stochlite[experiment_counter])
 						t_r +=r
 						states.append(cstate)
 						actions.append(tuned_actions_Stochlite[experiment_counter])
-					experiment_counter = experiment_counter +1
+					# experiment_counter = experiment_counter +1
 					print("Returns of the experiment:",t_r)
 
 	if(do_supervised_learning):

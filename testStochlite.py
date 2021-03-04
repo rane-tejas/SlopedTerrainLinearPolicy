@@ -17,8 +17,8 @@ if (__name__ == "__main__"):
 	parser.add_argument('--PolicyDir', help='directory of the policy to be tested', type=str, default='23July3')
 	parser.add_argument('--FrontMass', help='mass to be added in the first', type=float, default=0)
 	parser.add_argument('--BackMass', help='mass to be added in the back', type=float, default=0)
-	parser.add_argument('--FrictionCoeff', help='foot friction value to be set', type=float, default=0.6)
-	parser.add_argument('--WedgeIncline', help='wedge incline degree of the wedge', type=int, default=9)
+	parser.add_argument('--FrictionCoeff', help='foot friction value to be set', type=float, default=0.8)
+	parser.add_argument('--WedgeIncline', help='wedge incline degree of the wedge', type=int, default=13)
 	parser.add_argument('--WedgeOrientation', help='wedge orientation degree of the wedge', type=float, default=0)
 	parser.add_argument('--MotorStrength', help='maximum motor Strength to be applied', type=float, default=7.0)
 	parser.add_argument('--RandomTest', help='flag to sample test values randomly ', type=bool, default=False)
@@ -30,8 +30,8 @@ if (__name__ == "__main__"):
 	parser.add_argument('--AddImuNoise', help='flag to add noise in IMU readings', type=bool, default=False)
 
 	args = parser.parse_args()
-	# policy = np.load("experiments/"+args.PolicyDir+"/iterations/best_policy.npy")
-	# print(policy)
+	policy = np.load("experiments/"+args.PolicyDir+"/iterations/policy_18.npy")
+	print(policy)
 
 	WedgePresent = True
 
@@ -40,7 +40,8 @@ if (__name__ == "__main__"):
 	elif(args.WedgeIncline <0):
 		args.WedgeIncline = -1*args.WedgeIncline
 		args.Downhill = True
-	env = e.StochliteEnv(render=True, wedge=WedgePresent, on_rack=False, gait = 'trot')
+	env = e.StochliteEnv(render=True, wedge=WedgePresent, stairs = args.Stairs, downhill= args.Downhill, seed_value=args.seed,
+				      on_rack=False, gait = 'trot',IMU_Noise=args.AddImuNoise)
 
 
 	if(args.RandomTest):
@@ -66,29 +67,22 @@ if (__name__ == "__main__"):
 	# green('\nMass of the rear half of the body:'),red(env.BackMass),
 	green('\nMotor saturation torque:'),red(env.clips))
 
-    # policy = np.array( [0.8, 0.8, 0.8, 0.8,
-	# 	                0.0, 0.0, 0.0, 0.0,
-	#                     -1.0, -1.0, -1.0, -1.0,
-	# 	                -0.8, -0.8, -0.8, -0.8,
-	# 	                0.0, 0.0, 0.0, 0.0])
-
 	# Simulation starts
-	simstep = 1000
+	simstep = 700
 	plot_data = []
 	t_r = 0
 	for i_step in range(simstep):
-		# action = policy.dot(state)
-		# action = np.array( [0.1, 0.1, 0.1, 0.1,
+		# action = np.array( [-1.0, -1.0, -1.0, -1.0,
 		#                     0.0, 0.0, 0.0, 0.0,
-		#                     0.0, 0.0, 0.0, 0.0,
-		#                     0.23, 0.23, 0.23, 0.23,
+		#                     -0.05, -0.05, -0.05, -0.05,
+		#                     0.3, 0.3, 0.3, 0.3,
 		# 					0.0, 0.0, 0.0, 0.0])
 							
-		action = np.array( [0.3, 0.3, 0.3, 0.3, 
-							0.0, 0.0, 0.0, 0.0,
-	                    	-0.08, -0.08, -0.08, -0.08,
-		                    -0.2, 0.2, -0.2, 0.2,
-		                    0.0, 0.0, 0.0, 0.0])
+		# action = np.array( [0.6, 0.6, 0.6, 0.6, 
+		# 					0.0, 0.0, 0.0, 0.0,
+	    #                 	-0.06, -0.06, -0.06, -0.06,
+		#                     0.2, 0.2, 0.2, 0.2,
+		#                     0.0, 0.0, 0.0, 0.0])
 
 		# action = np.array( [-1, -1, -1, -1, 
 		# 					0.0, 0.0, 0.0, 0.0,
@@ -113,6 +107,9 @@ if (__name__ == "__main__"):
 		# 					-1.26537848, 1.53735276, -1.40197694, 0.18441505,
 		# 					2.04760108, 1.23218077, 0.73039901, 0.5590525, 
 		# 					-1.57862117, 0.47634525, 2.31610461, -1.42022835])
+		action = policy.dot(state)
+		plot_data.append(action)
+		env.updateCommands(i_step, simstep)
 		state, r, _, angle = env.step(action)
 		t_r +=r
 		# plot_data.append(r)
@@ -139,5 +136,27 @@ if (__name__ == "__main__"):
 	# plt.plot(total_r, label = "total reward")
 	# plt.legend()
 	# plt.show()
+
+	# cmd_vel = [p[0] for p in plot_data]
+	# x_vel = [p[1] for p in plot_data]
+	# t_r = [p[2] for p in plot_data]
+	# plt.plot(cmd_vel, label = "command vel")
+	# plt.plot(x_vel, label = "x vel")
+	# plt.legend()
+	# plt.show()
+
+	#Plotting only for FL
+	sl = [p[0] for p in plot_data]
+	sa = [p[4] for p in plot_data]
+	xs = [p[8] for p in plot_data]
+	ys = [p[12] for p in plot_data]
+	zs = [p[16] for p in plot_data]
+	plt.plot(sl, label = "Step Length")
+	plt.plot(sa, label = "Steer Angle")
+	plt.plot(xs, label = "X Shift")
+	plt.plot(ys, label = "Y Shift")
+	plt.plot(zs, label = "Z Shift")
+	plt.legend()
+	plt.show()
 
 	print("Total Reward:", t_r)

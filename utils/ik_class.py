@@ -47,7 +47,6 @@ class Serial2RKinematics():
 	-- Note the hip is taken with respective to the positive x- axis 
         '''
 
-
         valid = True
         q = np.zeros(2, float)
         x_z_points = np.array(ee_pos) - np.array(self.base_pivot)
@@ -59,24 +58,6 @@ class Serial2RKinematics():
             #print("Point is outside the workspace")
             valid=False
             return valid, q
-        # a = 2 * l1 * x
-        # b = 2 * l1 * z
-        # c = l2**2 - l1**2 - x**2 - z**2
-        # if branch == 1:
-        #     q[0] = math.atan2(a, b) - math.acos(c/math.sqrt(a**2 + b**2))
-        #     # print("Branch 1", q[0])
-        # elif branch == 2:
-        #     q[0] = math.atan2(a, b) + math.acos(c/math.sqrt(a**2 + b**2))
-        # q[1] = -math.atan2(-(x + l1*math.sin(q[0])), -(z + l1*math.cos(q[0]))) + q[0] # q[0] represents hip, q[1] is knee
-
-        # phi = math.atan2(-z, -x)
-        # l = math.sqrt(x**2 + z**2)
-        # q[0] = -phi + math.asin((l**2 + l1**2 - l2**2)/(2*l*l1))
-        # q[1] = -phi + math.asin((l**2 + l2**2 - l1**2)/(2*l*l2)) - q[0]
-        # ee_0 = -l1*math.sin(q[0])-l2*math.sin(q[0]+q[1])
-        # ee_1 = -l1*math.cos(q[0])-l2*math.cos(q[0]+q[1])
-        # print(x, z, l, l*math.cos(phi), l*math.sin(phi),ee_0, ee_1)
-        # print(phi, q[0], q[1])
 
         r = math.sqrt(x**2 + z**2)
         t1 = math.atan2(-z, -x)
