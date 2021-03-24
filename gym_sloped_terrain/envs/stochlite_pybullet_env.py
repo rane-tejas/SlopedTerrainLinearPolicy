@@ -43,7 +43,7 @@ class StochliteEnv(gym.Env):
 				 seed_value = 100,
 				 wedge = False,
 				 IMU_Noise = False,
-				 deg = 5): # deg = 5
+				 deg = 0): # deg = 5
 
 		self._is_stairs = stairs
 		self._is_wedge = wedge
@@ -146,14 +146,17 @@ class StochliteEnv(gym.Env):
 		self.action_space = spaces.Box(-action_high, action_high)
 
 		self.commands = np.array([0, 0, 0]) #Joystick commands consisting of cmd_x_velocity, cmd_y_velocity, cmd_ang_velocity
-		self.max_linear_xvel = 0.35 # calculation is < 0.2 m steplength times the frequency 2.5 Hz
-		self.max_linear_yvel = 0 #0.25, made zero for only x direction # calculation is < 0.14 m times the frequency 2.5 Hz
-		self.max_ang_vel = 0 #6, made zero for only x direction # less than one complete rotation in one second
+		self.max_linear_xvel = 0.4 #0.4, made zero for only ang vel # calculation is < 0.2 m steplength times the frequency 2.5 Hz
+		self.max_linear_yvel = 0.25 #0.25, made zero for only ang vel # calculation is < 0.14 m times the frequency 2.5 Hz
+		self.max_ang_vel = 3.5 #considering less than pi/2 steer angle # less than one complete rotation in one second
 		self.max_steplength = 0.2 # by the kinematic limits of the robot
+		self.max_steer_angle = PI/2 #plus minus PI/2 rads
 		self.max_x_shift = 0.1 #plus minus 0.1 m
 		self.max_y_shift = 0.14 # max 30 degree abduction
 		self.max_z_shift = 0.1 # plus minus 0.1 m
 		self.max_incline = 15 # in deg
+		self.robot_length = 0.334 # measured from stochlite
+		self.robot_width = 0.192 # measured from stochlite
 
 		self.hard_reset()
 
@@ -323,11 +326,11 @@ class StochliteEnv(gym.Env):
 		ratio = num_plays/episode_length
 		if num_plays < 0.2 * episode_length:
 			self.commands = [0, 0, 0]
-		# elif num_plays < 0.6 * episode_length:
-		# 	self.commands = [0.5 * self.max_linear_xvel, 0.5 * self.max_linear_yvel, 0.5 * self.max_ang_vel]
+		elif num_plays < 0.8 * episode_length:
+		 	self.commands = np.array([self.max_linear_xvel, self.max_linear_yvel, self.max_ang_vel])*ratio
 		else:
-			# self.commands = [self.max_linear_xvel, self.max_linear_yvel, self.max_ang_vel]
-			self.commands = np.array([self.max_linear_xvel, self.max_linear_yvel, self.max_ang_vel])*ratio
+			self.commands = [self.max_linear_xvel, self.max_linear_yvel, self.max_ang_vel]
+			# self.commands = np.array([self.max_linear_xvel, self.max_linear_yvel, self.max_ang_vel])*ratio
 
 	def apply_Ext_Force(self, x_f, y_f,link_index= 1,visulaize = False,life_time=0.01):
 		'''
@@ -389,7 +392,7 @@ class StochliteEnv(gym.Env):
 		return m[0]
 	
 
-	def Set_Randomization(self, default = True, idx1 = 0, idx2=0, idx3=2, idx0=0, idx11=0, idxc=2, idxp=0, deg = 5, ori = 0): # deg = 5, changed for stochlite
+	def Set_Randomization(self, default = True, idx1 = 0, idx2=0, idx3=2, idx0=0, idx11=0, idxc=2, idxp=0, deg = 0, ori = 0): # deg = 5, changed for stochlite
 		'''
 		This function helps in randomizing the physical and dynamics parameters of the environment to robustify the policy.
 		These parameters include wedge incline, wedge orientation, friction, mass of links, motor strength and external perturbation force.
@@ -412,7 +415,7 @@ class StochliteEnv(gym.Env):
 			self.clips = cli[idxc]
 
 		else:
-			avail_deg = [5, 7, 9, 11] # [5,7,9,11], changed for stochlite
+			avail_deg = [0, 0, 0, 0] # [5, 7, 9, 11] # [5,7,9,11], changed for stochlite
 			# extra_link_mass=[0,.05,0.1,0.15]
 			# pertub_range = [0, -30, 30, -60, 60]
 			cli=[5,6,7,8]
@@ -429,7 +432,7 @@ class StochliteEnv(gym.Env):
 			# self.BackMass = self.SetLinkMass(11,extra_link_mass[i])
 			self.clips = np.round(np.clip(np.random.normal(6.5,0.4),5,8),2)
 
-	def randomize_only_inclines(self, default=True, idx1=0, idx2=0, deg = 5, ori = 0): # deg = 5, changed for stochlite
+	def randomize_only_inclines(self, default=True, idx1=0, idx2=0, deg = 0, ori = 0): # deg = 5, changed for stochlite
 		'''
 		This function only randomizes the wedge incline and orientation and is called during training without Domain Randomization
 		'''
@@ -438,7 +441,7 @@ class StochliteEnv(gym.Env):
 			# self.incline_ori = ori + PI / 12 * idx2
 
 		else:
-			avail_deg = [5, 7, 9, 11] # [5, 7, 9, 11]
+			avail_deg = [0, 0, 0, 0] # [5, 7, 9, 11]
 			self.incline_deg = avail_deg[random.randint(0, 3)]
 			# self.incline_ori = (PI / 12) * random.randint(0, 4)  # resolution of 15 degree
 
@@ -539,25 +542,42 @@ class StochliteEnv(gym.Env):
         action[12:16] -> y_shift fl fr bl br
         action[16:20] -> z_shift fl fr bl br
 		'''
-		step_length_offset = self.max_steplength * math.sqrt(self.commands[0]**2 + self.commands[1]**2)/math.sqrt(self.max_linear_xvel**2 + self.max_linear_yvel**2)
 
-		sp_pitch_offset = self.max_x_shift * np.degrees(self.support_plane_estimated_pitch) / self.max_incline
+		# X, Y, Z shifts required for ang vel calculations
+		# action[8:12] = action[8:12]
+		# action[12:16] = action[12:16] * self.max_y_shift
+		# action[16:20] = action[16:20] * self.max_z_shift
+
+		# step_length_offset = self.max_steplength * math.sqrt(self.commands[0]**2 + self.commands[1]**2)/math.sqrt(self.max_linear_xvel**2 + self.max_linear_yvel**2)
+
+		lvel_step_length_offset = math.sqrt(self.commands[0]**2 + self.commands[1]**2) / self._frequency # math.sqrt(self.max_linear_xvel**2 + self.max_linear_yvel**2) * math.sqrt(self.commands[0]**2 + self.commands[1]**2) / self._frequency
+		lvel_steer_angle_offset = math.atan2(self.commands[1], self.commands[0]) # self.max_steer_angle * self.commands[1]
+
+		# Robot footprint
+		# robot_fp_len = self.robot_length
+		# robot_fp_wid = self.robot_width +  
+
+		# sp_pitch_offset = self.max_x_shift * np.degrees(self.support_plane_estimated_pitch) / self.max_incline
 		# sp_roll_offset = self.max_z_shift * np.degrees(self.support_plane_estimated_roll) / self.max_incline
 		# print("Sp pitch", np.degrees(self.support_plane_estimated_pitch))
 		# print("pitch offset", sp_pitch_offset)
 
 		action = np.clip(action,-1,1)
 
-		action[:4] = (action[:4]+1)/2*0.4*self.max_steplength  #+ 0.15 	# Step lengths are positive always
+		action[:4] = action[:4] * self.max_steplength # Limiting step length # * 0.35 # (action[:4]+1)/2 * 0.4 * self.max_steplength considering neg step lengths #+ 0.15 # Step lengths are positive always
 		
-		action[:4] = action[:4] + step_length_offset  # Max step length = 2x0.1 =0.2
+		action[:4] = action[:4] + lvel_step_length_offset # Max step length = 2x0.1 =0.2
 
-		action[8:12] = action[8:12] + sp_pitch_offset #- 0.08
+		action[4:8] = action[4:8] * self.max_steer_angle # Limiting steer angle
 
-		action[12:16] = action[12:16] * self.max_y_shift + 0.04 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
+		action[4:8] = action[4:8] + lvel_steer_angle_offset 
 
-		action[12] = -action[12]
-		action[14] = -action[14]
+		action[8:12] = action[8:12] #+ sp_pitch_offset #- 0.08
+
+		action[12:16] = action[12:16] * self.max_y_shift #+ 0.04 # np.clip(action[12:16], -0.14, 0.14)  #the Y_shift can be +/- 0.14 from the leg zero position, max abd angle = +/- 30 deg 
+
+		# action[12] = -action[12]
+		# action[14] = -action[14]
 
 		action[16:20] = action[16:20] * self.max_z_shift
 
@@ -645,7 +665,7 @@ class StochliteEnv(gym.Env):
 		self.action = action
 		ii = 0
 
-		leg_m_angle_cmd = self._walkcon.run_elliptical_Traj_Stochlite(self._theta,action)
+		leg_m_angle_cmd = self._walkcon.run_elliptical_Traj_Stochlite(self._theta, action)
 
 		self._theta = constrain_theta(omega * self.dt + self._theta)
 		
@@ -759,7 +779,7 @@ class StochliteEnv(gym.Env):
 
 		current_height = round(pos[2], 5)
 		self.current_com_height = current_height
-		standing_penalty=3
+		# standing_penalty=3
 	
 		desired_height = (robot_height_from_support_plane)/math.cos(wedge_angle) + math.tan(wedge_angle)*((pos[0])*math.cos(self.incline_ori)+ 0.5)
 
@@ -770,11 +790,11 @@ class StochliteEnv(gym.Env):
 		yaw_reward = np.exp(-40 * (RPY[2] ** 2)) # np.exp(-35 * (RPY[2] ** 2)) increasing reward for yaw correction
 		height_reward = np.exp(-800 * (desired_height - current_height) ** 2)
 
-		x = pos[0]
-		y = pos[1]
-		yaw = RPY[2]
-		x_l = self._last_base_position[0]
-		y_l = self._last_base_position[1]
+		# x = pos[0]
+		# y = pos[1]
+		# yaw = RPY[2]
+		# x_l = self._last_base_position[0]
+		# y_l = self._last_base_position[1]
 		self._last_base_position = pos
 		self.last_yaw = RPY[2]
 
@@ -795,10 +815,12 @@ class StochliteEnv(gym.Env):
 			reward = round(yaw_reward, 4) + round(pitch_reward, 4) + round(roll_reward, 4)\
 					 + round(height_reward,4) + round(cmd_translation_vel_reward, 4) + round(cmd_rotation_vel_reward, 4)#- 100 * round(step_distance_x, 4) - 100 * round(step_distance_y, 4)\
 
-		# reward_info = [0, 0, 0]
-		# reward_info[0] = self.commands[0]
-		# reward_info[1] = x_velocity
-		# reward_info[2] = reward_info[2] + reward
+		reward_info = [0, 0, 0, 0, 0]
+		reward_info[0] = self.commands[0]
+		reward_info[1] = self.commands[1]
+		reward_info[2] = x_velocity
+		reward_info[3] = y_velocity
+		reward_info[4] = reward_info[4] + reward
 		'''
 		#Penalize for standing at same position for continuous 150 steps
 		self.step_disp.append(step_distance_x)
@@ -828,7 +850,7 @@ class StochliteEnv(gym.Env):
 
 		# reward_info[8] = reward
 
-		return reward, done
+		return reward_info, done
 
 	def _apply_pd_control(self, motor_commands, motor_vel_commands):
 		'''

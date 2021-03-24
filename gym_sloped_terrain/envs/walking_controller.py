@@ -13,15 +13,11 @@ from __future__ import division
 from __future__ import print_function
 from dataclasses import dataclass
 from collections import namedtuple
-# from utils.ik_class import Stoch2Kinematics
-# from utils.ik_class import LaikagoKinematics
-# from utils.ik_class import HyqKinematics
 from utils.ik_class import StochliteKinematics
 import numpy as np
 
 PI = np.pi
 no_of_points = 100
-
 
 @dataclass
 class leg_data:
@@ -50,21 +46,13 @@ class robot_data:
 
 
 class WalkingController():
-    def __init__(self,
-                 gait_type='trot',
-                 phase=[0, PI, PI, 0],
-                 ):
+    def __init__(self, gait_type='trot', phase=[0, PI, PI, 0]):
         self._phase = robot_data(front_right=phase[0], front_left=phase[1], back_right=phase[2], back_left=phase[3])
         self.front_left = leg_data('FL', 1)
         self.front_right = leg_data('FR', 2)
         self.back_left = leg_data('BL', 3)
         self.back_right = leg_data('BR', 4)
         self.gait_type = gait_type
-
-        self.MOTOROFFSETS_Stoch2 = [2.3562, 1.2217]
-        self.MOTOROFFSETS_Laikago = [0.87, 0.7]  # [np.pi*0.9, 0]#
-        self.MOTOROFFSETS_HYQ = [1.57, 0]
-        self.MOTOROFFSETS_Stochlite = [PI/2, 0] # [0, 0]
 
         self.link_lengths_stochlite = [0.096, 0.146, 0.172]
 
@@ -73,11 +61,8 @@ class WalkingController():
         self.leg_name_to_sol_branch_Laikago = {'FL': 0, 'FR': 0, 'BL': 0, 'BR': 0}
         # self.leg_name_to_sol_branch_Stochlite = {'FL': 1, 'FR': -1, 'BL': 1, 'BR': -1}
 
-        self.body_width = 0.24
-        self.body_length = 0.37
-        # self.Stoch2_Kin = Stoch2Kinematics()
-        # self.Laikago_Kin = LaikagoKinematics()
-        # self.Hyq_Kin = HyqKinematics()
+        self.robot_width = 0.192
+        self.robot_length = 0.334
         self.stochlite_kin = StochliteKinematics()
 
     def update_leg_theta(self, theta):
