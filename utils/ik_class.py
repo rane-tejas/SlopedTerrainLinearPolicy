@@ -241,7 +241,7 @@ class StochliteKinematics(object):
         '''
         Forward kinematics of the Stoch Lite leg
         Args:
-        -- q : Active joint angles, [knee, hip, abduction]
+        -- q : A vector of the joint angles [q_abd, q_hip, q_knee], where q_knee is relative in nature
         Return:
         -- x : End-effector positions
 

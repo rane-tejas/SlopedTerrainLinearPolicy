@@ -20,14 +20,6 @@ import os
 RENDER_HEIGHT = 720 
 RENDER_WIDTH = 960 
 PI = np.pi
-no_of_points = 100
-
-
-def constrain_theta(theta):
-	theta = np.fmod(theta, 2*no_of_points)
-	if(theta < 0):
-		theta = theta + 2*no_of_points
-	return theta
 
 class StochliteEnv(gym.Env):
 
@@ -35,7 +27,7 @@ class StochliteEnv(gym.Env):
 				 render = False,
 				 on_rack = False,
 				 gait = 'trot',
-				 phase =   [0, no_of_points, no_of_points,0],#[FR, FL, BR, BL] 
+				 phase =   [0, PI, PI,0],#[FR, FL, BR, BL] 
 				 action_dim = 20,
 				 end_steps = 1000,
 				 stairs = False,
@@ -59,7 +51,7 @@ class StochliteEnv(gym.Env):
 		else:
 			self._pybullet_client = bullet_client.BulletClient()
 
-		self._theta = 0
+		# self._theta = 0
 
 		self._frequency = 2.5 # originally 2.5, changing for stability
 		self.termination_steps = end_steps
@@ -89,9 +81,9 @@ class StochliteEnv(gym.Env):
 		self.wedge_halflength = 2
 
 		if gait is 'trot':
-			phase = [0, no_of_points, no_of_points, 0]
+			phase = [0, PI, PI, 0]
 		elif gait is 'walk':
-			phase = [0, no_of_points, 3*no_of_points/2 ,no_of_points/2]
+			phase = [0, PI, 3*PI/2 ,PI/2]
 		self._walkcon = walking_controller.WalkingController(gait_type=gait, phase=phase)
 		self.inverse = False
 		self._cam_dist = 1.0
@@ -272,7 +264,7 @@ class StochliteEnv(gym.Env):
 		This function resets the environment 
 		Note : Set_Randomization() is called before reset() to either randomize or set environment in default conditions.
 		'''
-		self._theta = 0
+		# self._theta = 0
 		self._last_base_position = [0, 0, 0]
 		self.commands = [0, 0, 0]
 		self.last_yaw = 0
@@ -660,14 +652,11 @@ class StochliteEnv(gym.Env):
 	def do_simulation(self, action, n_frames):
 		'''
 		Converts action parameters to corresponding motor commands with the help of a elliptical trajectory controller
-		'''
-		omega = 2 * no_of_points * self._frequency  
+		'''  
 		self.action = action
 		ii = 0
 
-		leg_m_angle_cmd = self._walkcon.run_elliptical_Traj_Stochlite(self._theta, action)
-
-		self._theta = constrain_theta(omega * self.dt + self._theta)
+		leg_m_angle_cmd = self._walkcon.run_elliptical_Traj_Stochlite(, action, self.dt)
 		
 		m_angle_cmd_ext = np.array(leg_m_angle_cmd)
 
