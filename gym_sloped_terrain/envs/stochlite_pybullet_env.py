@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 from gym import spaces
-import gym_sloped_terrain.envs.walking_controller as walking_controller
+import gym_sloped_terrain.envs.trajectory_generator as trajectory_generator
 import math
 import random
 from collections import deque
@@ -84,7 +84,7 @@ class StochliteEnv(gym.Env):
 			phase = [0, PI, PI, 0]
 		elif gait is 'walk':
 			phase = [0, PI, 3*PI/2 ,PI/2]
-		self._walkcon = walking_controller.WalkingController(gait_type=gait, phase=phase)
+		self._trajgen = trajectory_generator.TrajectoryGenerator(gait_type=gait, phase=phase)
 		self.inverse = False
 		self._cam_dist = 1.0
 		self._cam_yaw = 0.0
@@ -628,7 +628,7 @@ class StochliteEnv(gym.Env):
 			done       : whether the step terminates the env
 			{}	   : any information of the env (will be added later)
 		'''
-		action = self.transform_action(action)
+		# action = self.transform_action(action)
 		
 		self.do_simulation(action, n_frames = self._frame_skip)
 
@@ -654,9 +654,10 @@ class StochliteEnv(gym.Env):
 		Converts action parameters to corresponding motor commands with the help of a elliptical trajectory controller
 		'''  
 		self.action = action
+		prev_motor_angles = self.GetMotorAngles()
 		ii = 0
 
-		leg_m_angle_cmd = self._walkcon.run_elliptical_Traj_Stochlite(, action, self.dt)
+		leg_m_angle_cmd = self._trajgen.generate_trajectory(action, prev_motor_angles, self.dt)
 		
 		m_angle_cmd_ext = np.array(leg_m_angle_cmd)
 

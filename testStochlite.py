@@ -9,7 +9,7 @@ import time
 import math
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use( 'tkagg' )
+# matplotlib.use( 'tkagg' )
 PI = np.pi
 
 
@@ -74,6 +74,11 @@ if (__name__ == "__main__"):
 	plot_data = []
 	t_r = 0
 	for i_step in range(simstep):
+		action = np.array( [0.0, 0.0, 0.0, 0.0,
+		                    -0.05, 0.05, -0.05, 0.05,
+							0.0, 0.0, 0.0, 0.0,
+							0.0, 0.0, 0.0])
+		
 		# action = np.array( [-1.0, -1.0, -1.0, -1.0,
 		#                     0.0, 0.0, 0.0, 0.0,
 		#                     -0.05, -0.05, -0.05, -0.05,
@@ -86,11 +91,11 @@ if (__name__ == "__main__"):
 		#                     0.2, 0.2, 0.2, 0.2,
 		#                     0.0, 0.0, 0.0, 0.0])
 
-		action = np.array( [0.0, 0.0, 0.0, 0.0, 
-							0.0, 0.0, 0.0, 0.0,
-	                    	0.0, 0.0, 0.0, 0.0,
-		                    -0.5, 0.5, -0.5, 0.5,
-		                    0.0, 0.0, 0.0, 0.0])
+		# action = np.array( [0.0, 0.0, 0.0, 0.0, 
+		# 					0.0, 0.0, 0.0, 0.0,
+	    #                 	0.0, 0.0, 0.0, 0.0,
+		#                     -0.5, 0.5, -0.5, 0.5,
+		#                     0.0, 0.0, 0.0, 0.0])
 
 		# action = np.array( [0.3, 0.3, 0.3, 0.3, 
 		# 					0.0, 0.0, 0.0, 0.0,

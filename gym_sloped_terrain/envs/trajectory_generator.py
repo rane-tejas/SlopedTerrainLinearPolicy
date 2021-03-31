@@ -81,7 +81,7 @@ class TrajectoryGenerator():
 
     def update_leg_theta(self, dt):
         '''
-        Depending on the gait, the theta for every leg is calculated.
+        Function to calculate the leg cycles of the trajectory, depending on the gait.
         '''
 
         def constrain_theta(theta):
@@ -98,6 +98,10 @@ class TrajectoryGenerator():
         self.back_right.theta = constrain_theta(self.theta + self._phase.back_right)
 
     def reset_theta(self):
+        '''
+        Function to reset the main cycle of the trajectory.
+        '''
+
         self.theta = 0
 
     def initialize_traj_shift(self, x_shift, y_shift, z_shift):
@@ -141,7 +145,45 @@ class TrajectoryGenerator():
         self.back_right.prev_motor_knee = prev_motor_angles[7]
         self.back_right.prev_motor_abd = prev_motor_angles[11]
 
-    def calculate_planar_traj(self, action, dt, ):
+    def calculate_planar_traj(self, leg, v_x, v_y, w_z, dt):
+        '''
+        Calculates the x and y component of the trajectory based on the commanded velocities (either from joystick or augmented by the policy).
+        Args:
+            leg : trajectory cycle parameter
+            v_x : trajectory modulation parameter predicted by the policy
+            v_y : boolean defining swing phase and stance phase of the leg
+            w_z : boolean defining swing phase and stance phase of the leg
+            dt  : boolean defining swing phase and stance phase of the leg
+        Ret:
+            z   : calculated z component of the trajectory.
+        '''
+        
+        cmd_lvel = np.array([v_x, v_y, 0])
+        cmd_avel = np.array([0, 0, w_z])
+        v_leg = [0, 0, 0]
+
+        if (leg.name == "FL"):
+            leg_frame = [+self.robot_length/2, +self.robot_width/2, 0]
+        elif (leg.name == "FR"):
+            leg_frame = [+self.robot_length/2, -self.robot_width/2, 0]
+        elif (leg.name == "BL"):
+            leg_frame = [-self.robot_length/2, +self.robot_width/2, 0]
+        elif (leg.name == "BR"):
+            leg_frame = [-self.robot_length/2, -self.robot_width/2, 0]
+        
+        prev_foot_pos = np.array([leg.prev_x, leg.prev_y, 0])
+        prev_r = prev_foot_pos + np.array(leg_frame)
+
+        v_lcomp = cmd_lvel
+        v_acomp = np.cross(cmd_avel, prev_r)
+        v_leg = v_lcomp + v_acomp
+        dr = v_leg * dt
+        r = prev_r + dr - np.array(leg_frame)
+
+        x = r[0] + leg.x_shift
+        y = r[1] + leg.y_shift
+
+        return [x, y]
 
     def calculate_vert_comp(self, leg):
         '''
@@ -149,17 +191,16 @@ class TrajectoryGenerator():
         The z component calculation is kept independent as it is not affected by the velocity calculations. 
         Various functions can be used to smoothen out the foot impacts while walking.
         Args:
-            theta   : trajectory cycle parameter
-            z_shift : trajectory modulation parameter predicted by the policy
-            flag    : boolean defining swing phase and stance phase of the leg
+            leg : trajectory cycle parameter
         Ret:
-            z       : calculated z component of the trajectory.
+            z   : calculated z component of the trajectory.
         '''
 
-        if leg_theta > PI: # theta taken from +x, CW # Flip this sigh if the trajectory is mirrored
+        if leg.theta > PI: # theta taken from +x, CW # Flip this sigh if the trajectory is mirrored
             flag = 0 #z-coordinate of trajectory, during stance_phase of walking
         else:
             flag = 1 #z-coordinate of trajectory, during swing_phase of walking
+
         z = self.foot_clearance * np.sin(leg.theta) * flag + self.walking_height + leg.z_shift 
         return z
 
@@ -184,7 +225,7 @@ class TrajectoryGenerator():
 
         return legs
 
-    def generate_traj(self, action, prev_motor_angles, dt):
+    def generate_trajectory(self, action, prev_motor_angles, dt):
         '''
         Velocity based trajectory generator. The controller assumes a default trot gait. 
         Args:
@@ -196,12 +237,17 @@ class TrajectoryGenerator():
         '''
 
         legs = self.initialize_leg_state(action, prev_motor_angles, dt)
+        lin_vel_x = action[12]
+        lin_vel_y = action[13]
+        ang_vel_z = action[14]
 
         for leg in legs:
-            [leg.prev_x, leg.prev_y, leg.prev_z] = self.stochlite_kin.forwardKinematics(leg.name, [leg.prev_motor_abd, leg.prev_motor_hip, leg.prev_motor_knee])
-            [leg.x, leg.y] = calculate_planar_traj(action, dt, [leg.prev_x, leg.prev_y])
 
-            leg.z = calculate_vert_comp(leg)
+            [leg.prev_x, leg.prev_y, leg.prev_z] = self.stochlite_kin.forwardKinematics(leg.name, [leg.prev_motor_abd, leg.prev_motor_hip, leg.prev_motor_knee])
+            [leg.x, leg.y] = self.calculate_planar_traj(leg, lin_vel_x, lin_vel_y, ang_vel_z, dt)
+            leg.z = self.calculate_vert_comp(leg)
+
+            print(leg)
 
             branch = "<"
             _,[leg.motor_abd, leg.motor_hip, leg.motor_knee] = self.stochlite_kin.inverseKinematics(leg.name, [leg.x, leg.y, leg.z], branch)
@@ -214,3 +260,6 @@ class TrajectoryGenerator():
                             legs.back_left.motor_abd, legs.back_right.motor_abd]
         
         return leg_motor_angles
+
+if __name__ == '__main__':
+    trajgen = TrajectoryGenerator()
