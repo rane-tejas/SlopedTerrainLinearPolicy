@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from collections import namedtuple
 from utils.ik_class import StochliteKinematics
 import numpy as np
+import matplotlib.pyplot as plt
 
 PI = np.pi
 
@@ -247,7 +248,7 @@ class TrajectoryGenerator():
             [leg.x, leg.y] = self.calculate_planar_traj(leg, lin_vel_x, lin_vel_y, ang_vel_z, dt)
             leg.z = self.calculate_vert_comp(leg)
 
-            print(leg)
+            # print(leg)
 
             branch = "<"
             _,[leg.motor_abd, leg.motor_hip, leg.motor_knee] = self.stochlite_kin.inverseKinematics(leg.name, [leg.x, leg.y, leg.z], branch)
@@ -259,7 +260,45 @@ class TrajectoryGenerator():
                             legs.front_left.motor_abd, legs.front_right.motor_abd,
                             legs.back_left.motor_abd, legs.back_right.motor_abd]
         
-        return leg_motor_angles
+        fl_foot_pos = [legs.front_left.x, legs.front_left.y, legs.front_left.z]
+        fr_foot_pos = [legs.front_right.x, legs.front_right.y, legs.front_right.z]
+        bl_foot_pos = [legs.back_left.x, legs.back_left.y, legs.back_left.z]
+        br_foot_pos = [legs.back_right.x, legs.back_right.y, legs.back_right.z]
+        
+        return leg_motor_angles, fl_foot_pos + fr_foot_pos + bl_foot_pos + br_foot_pos
 
 if __name__ == '__main__':
     trajgen = TrajectoryGenerator()
+    action = np.array([0.0, 0.0, 0.0, 0.0,
+                       0.0, 0.0, 0.0, 0.0,
+                       0.0, 0.0, 0.0, 0.0,
+                       0.0, 0.0, 0.0])
+    
+    plotdata = []
+    dt = 0.01
+    prev_motor_angles = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ax = plt.axes(projection='3d')
+
+    for i in range(200):
+        prev_motor_angles, foot_pos = trajgen.generate_trajectory(action, prev_motor_angles, dt)
+        plotdata.append(foot_pos)
+
+    x_fl = [p[0] for p in plotdata]
+    y_fl = [p[1] for p in plotdata]
+    z_fl = [p[2] for p in plotdata]
+    x_fr = [p[3] for p in plotdata]
+    y_fr = [p[4] for p in plotdata]
+    z_fr = [p[5] for p in plotdata]
+    x_bl = [p[6] for p in plotdata]
+    y_bl = [p[7] for p in plotdata]
+    z_bl = [p[8] for p in plotdata]
+    x_br = [p[9] for p in plotdata]
+    y_br = [p[10] for p in plotdata]
+    z_br = [p[11] for p in plotdata]
+
+    ax.plot3D(x_fl, y_fl, z_fl, 'red')
+    ax.plot3D(x_fr, y_fr, z_fr, 'blue')
+    ax.plot3D(x_bl, y_bl, z_bl, 'blue')
+    ax.plot3D(x_br, y_br, z_br, 'red')
+
+    plt.show()
