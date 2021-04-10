@@ -178,7 +178,13 @@ class TrajectoryGenerator():
         v_lcomp = cmd_lvel
         v_acomp = np.cross(cmd_avel, prev_r)
         v_leg = v_lcomp + v_acomp
-        dr = v_leg * dt
+
+        if leg.theta > PI: # theta taken from +x, CW # Flip this sigh if the trajectory is mirrored
+            flag = -1 #during stance_phase of walking, leg moves backwards to push body forward
+        else:
+            flag = 1 #during swing_phase of walking, leg moves forward to next step
+
+        dr = v_leg * dt * flag
         r = prev_r + dr - np.array(leg_frame)
 
         x = r[0] + leg.x_shift
@@ -260,10 +266,10 @@ class TrajectoryGenerator():
                             legs.front_left.motor_abd, legs.front_right.motor_abd,
                             legs.back_left.motor_abd, legs.back_right.motor_abd]
         
-        fl_foot_pos = [legs.front_left.x, legs.front_left.y, legs.front_left.z]
-        fr_foot_pos = [legs.front_right.x, legs.front_right.y, legs.front_right.z]
-        bl_foot_pos = [legs.back_left.x, legs.back_left.y, legs.back_left.z]
-        br_foot_pos = [legs.back_right.x, legs.back_right.y, legs.back_right.z]
+        fl_foot_pos = [legs.front_left.x + self.robot_length/2, legs.front_left.y + self.robot_width/2, legs.front_left.z]
+        fr_foot_pos = [legs.front_right.x + self.robot_length/2, legs.front_right.y - self.robot_width/2, legs.front_right.z]
+        bl_foot_pos = [legs.back_left.x - self.robot_length/2, legs.back_left.y + self.robot_width/2, legs.back_left.z]
+        br_foot_pos = [legs.back_right.x - self.robot_length/2, legs.back_right.y - self.robot_width/2, legs.back_right.z]
         
         return leg_motor_angles, fl_foot_pos + fr_foot_pos + bl_foot_pos + br_foot_pos
 
@@ -272,14 +278,14 @@ if __name__ == '__main__':
     action = np.array([0.0, 0.0, 0.0, 0.0,
                        0.0, 0.0, 0.0, 0.0,
                        0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0])
+                       0.5, 0.0, 0.0])
     
     plotdata = []
     dt = 0.01
     prev_motor_angles = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     ax = plt.axes(projection='3d')
 
-    for i in range(200):
+    for i in range(40):
         prev_motor_angles, foot_pos = trajgen.generate_trajectory(action, prev_motor_angles, dt)
         plotdata.append(foot_pos)
 
