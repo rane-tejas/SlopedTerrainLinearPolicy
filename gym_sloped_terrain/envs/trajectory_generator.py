@@ -82,6 +82,9 @@ class TrajectoryGenerator():
         self.foot_clearance = 0.06
         self.walking_height = -0.25
         self.swing_time = 0.25
+        self.max_linear_xvel = 0.4 #0.4, made zero for only ang vel # calculation is < 0.2 m steplength times the frequency 2.5 Hz
+        self.max_linear_yvel = 0.25 #0.25, made zero for only ang vel # calculation is < 0.14 m times the frequency 2.5 Hz
+        self.max_ang_vel = 3.5 #considering less than pi/2 steer angle # less than one complete rotation in one second
 
     def update_leg_theta(self, dt):
         '''
@@ -161,7 +164,15 @@ class TrajectoryGenerator():
         self.back_right.prev_motor_knee = prev_motor_angles[7]
         self.back_right.prev_motor_abd = prev_motor_angles[11]
 
-    def foot_step_planner(self):
+    def foot_step_planner(self, leg, v_leg):
+        s = v_leg * self.swing_time
+        x = s[0] + leg.x_shift
+        y = s[1] + leg.y_shift
+        z = s[2] + leg.z_shift
+
+        # print("FSP,", x, y, z)
+
+        return [x, y, z]
 
     def calculate_planar_traj(self, leg, v_x, v_y, w_z, dt):
         '''
@@ -179,6 +190,8 @@ class TrajectoryGenerator():
         cmd_lvel = np.array([v_x, v_y, 0])
         cmd_avel = np.array([0, 0, w_z])
         v_leg = [0, 0, 0]
+        next_step = [0, 0, 0]
+        swing_vec = [0, 0, 0]
 
         if (leg.name == "FL"):
             leg_frame = [+self.robot_length/2, +self.robot_width/2, 0]
@@ -198,11 +211,15 @@ class TrajectoryGenerator():
 
         if leg.theta > PI: # theta taken from +x, CW # Flip this sign if the trajectory is mirrored
             flag = -1 #during stance_phase of walking, leg moves backwards to push body forward
+            dr = v_leg * dt * flag
+            r = prev_r + dr - np.array(leg_frame)
         else:
             flag = 1 #during swing_phase of walking, leg moves forward to next step
+            next_step = self.foot_step_planner(leg, v_leg) + np.array(leg_frame)
+            swing_vec = next_step - prev_r
+            dr = swing_vec * (0.25/100) * flag
+            r = prev_r + dr - np.array(leg_frame)
 
-        dr = v_leg * dt * flag
-        r = prev_r + dr - np.array(leg_frame)
 
         x = r[0] #+ leg.x_shift
         y = r[1] #+ leg.y_shift
@@ -261,9 +278,9 @@ class TrajectoryGenerator():
         '''
 
         legs = self.initialize_leg_state(action, prev_motor_angles, dt)
-        lin_vel_x = action[12]
-        lin_vel_y = action[13]
-        ang_vel_z = action[14]
+        lin_vel_x = action[12] * self.max_linear_xvel
+        lin_vel_y = action[13] * self.max_linear_yvel
+        ang_vel_z = action[14] * self.max_ang_vel
 
         for leg in legs:
 
@@ -285,16 +302,16 @@ class TrajectoryGenerator():
                             legs.back_left.motor_abd, legs.back_right.motor_abd]
         
         # Plotting in base frame
-        # fl_foot_pos = [legs.front_left.x + self.robot_length/2, legs.front_left.y + self.robot_width/2, legs.front_left.z]
-        # fr_foot_pos = [legs.front_right.x + self.robot_length/2, legs.front_right.y - self.robot_width/2, legs.front_right.z]
-        # bl_foot_pos = [legs.back_left.x - self.robot_length/2, legs.back_left.y + self.robot_width/2, legs.back_left.z]
-        # br_foot_pos = [legs.back_right.x - self.robot_length/2, legs.back_right.y - self.robot_width/2, legs.back_right.z]
+        fl_foot_pos = [legs.front_left.x + self.robot_length/2, legs.front_left.y + self.robot_width/2, legs.front_left.z]
+        fr_foot_pos = [legs.front_right.x + self.robot_length/2, legs.front_right.y - self.robot_width/2, legs.front_right.z]
+        bl_foot_pos = [legs.back_left.x - self.robot_length/2, legs.back_left.y + self.robot_width/2, legs.back_left.z]
+        br_foot_pos = [legs.back_right.x - self.robot_length/2, legs.back_right.y - self.robot_width/2, legs.back_right.z]
 
         # Plotting in leg frame
-        fl_foot_pos = [legs.front_left.x, legs.front_left.y, legs.front_left.z]
-        fr_foot_pos = [legs.front_right.x, legs.front_right.y, legs.front_right.z]
-        bl_foot_pos = [legs.back_left.x, legs.back_left.y, legs.back_left.z]
-        br_foot_pos = [legs.back_right.x, legs.back_right.y, legs.back_right.z]
+        # fl_foot_pos = [legs.front_left.x, legs.front_left.y, legs.front_left.z]
+        # fr_foot_pos = [legs.front_right.x, legs.front_right.y, legs.front_right.z]
+        # bl_foot_pos = [legs.back_left.x, legs.back_left.y, legs.back_left.z]
+        # br_foot_pos = [legs.back_right.x, legs.back_right.y, legs.back_right.z]
         
         return leg_motor_angles, fl_foot_pos + fr_foot_pos + bl_foot_pos + br_foot_pos
 
@@ -303,14 +320,14 @@ if __name__ == '__main__':
     action = np.array([0.0, 0.0, 0.0, 0.0,
                        0.0, 0.0, 0.0, 0.0,
                        0.0, 0.0, 0.0, 0.0,
-                       0.1, 0.0, 0.0])
+                       0.5, 0.0, 0.0])
     
     plotdata = []
     dt = 0.01
     prev_motor_angles = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     ax = plt.axes(projection='3d')
 
-    for i in range(40):
+    for i in range(200):
         prev_motor_angles, foot_pos = trajgen.generate_trajectory(action, prev_motor_angles, dt)
         plotdata.append(foot_pos)
 
@@ -329,7 +346,7 @@ if __name__ == '__main__':
 
     ax.plot3D(x_fl, y_fl, z_fl, 'red')
     ax.plot3D(x_fr, y_fr, z_fr, 'blue')
-    # ax.plot3D(x_bl, y_bl, z_bl, 'blue')
-    # ax.plot3D(x_br, y_br, z_br, 'red')
+    ax.plot3D(x_bl, y_bl, z_bl, 'blue')
+    ax.plot3D(x_br, y_br, z_br, 'red')
 
     plt.show()
